@@ -1,0 +1,243 @@
+/**
+ * SiedeStudios - Improved Header Styles
+ */
+
+ .site-header {
+  position: sticky;
+  top: 0;
+  width: 100%;
+  background-color: var(--color-background-alt);
+  padding: 1rem 0;
+  z-index: var(--z-header);
+  transition: background-color 0.3s ease, box-shadow 0.3s ease;
+  box-shadow: var(--shadow-sm);
+  
+  &.scrolled {
+    padding: 0.75rem 0;
+  }
+  
+  .header-inner {
+    @include flex(row, space-between, center);
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 2rem;
+    
+    @include breakpoint(mobile) {
+      padding: 0 1rem;
+    }
+  }
+  
+  .logo {
+    display: flex;
+    align-items: center;
+    
+    a {
+      color: var(--color-text);
+      text-decoration: none;
+      font-weight: 700;
+      font-size: 1.5rem;
+      transition: color 0.2s ease;
+      
+      &:hover {
+        color: var(--color-primary);
+      }
+    }
+    
+    .logo-text {
+      .siede {
+        color: var(--color-text);
+      }
+      
+      .highlight {
+        color: var(--color-primary);
+      }
+    }
+  }
+  
+  .main-nav {
+    @include breakpoint(desktop) {
+      display: none;
+    }
+    
+    ul {
+      @include flex(row, center, center);
+      gap: 2.5rem;
+      margin: 0;
+      padding: 0;
+      
+      li {
+        position: relative;
+        list-style: none;
+        
+        a {
+          color: var(--color-text-muted);
+          text-decoration: none;
+          font-weight: 500;
+          padding: 0.5rem 0;
+          transition: color 0.2s ease, transform 0.2s ease;
+          position: relative;
+          font-size: 0.95rem;
+          letter-spacing: 0.03em;
+          
+          &::after {
+            content: '';
+            position: absolute;
+            width: 0;
+            height: 2px;
+            bottom: 0;
+            left: 0;
+            background-color: var(--color-primary);
+            transition: width 0.3s ease;
+          }
+          
+          &:hover, &.active {
+            color: var(--color-text);
+            
+            &::after {
+              width: 100%;
+            }
+          }
+          
+          &.active {
+            color: var(--color-primary);
+            font-weight: 600;
+          }
+        }
+      }
+    }
+  }
+  
+  .header-actions {
+    @include flex(row, center, center);
+    gap: 1.5rem;
+    
+    .theme-toggle {
+      margin-right: -0.5rem;
+    }
+    
+    .mobile-menu-toggle {
+      display: none;
+      flex-direction: column;
+      justify-content: space-between;
+      width: 24px;
+      height: 18px;
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      padding: 0;
+      z-index: 10;
+      
+      @include breakpoint(desktop) {
+        display: flex;
+      }
+      
+      span {
+        display: block;
+        width: 100%;
+        height: 2px;
+        background-color: var(--color-text);
+        transition: all 0.3s ease;
+        transform-origin: center;
+        border-radius: 2px;
+      }
+      
+      &.active {
+        span:first-child {
+          transform: translateY(8px) rotate(45deg);
+        }
+        
+        span:nth-child(2) {
+          opacity: 0;
+        }
+        
+        span:last-child {
+          transform: translateY(-8px) rotate(-45deg);
+        }
+      }
+    }
+  }
+}
+
+// Mobile Navigation
+.mobile-nav {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: 100%;
+  height: 100dvh;
+  background-color: var(--color-background);
+  z-index: calc(var(--z-header) - 1);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  transform: translateX(100%);
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  
+  &.active {
+    transform: translateX(0);
+  }
+  
+  ul {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2rem;
+    padding: 0;
+    
+    li {
+      list-style: none;
+      
+      a {
+        color: var(--color-text);
+        font-size: 1.5rem;
+        font-weight: 600;
+        text-decoration: none;
+        transition: color 0.2s ease;
+        padding: 0.5rem 1rem;
+        
+        &:hover, &.active {
+          color: var(--color-primary);
+        }
+        
+        &.active {
+          position: relative;
+          
+          &::after {
+            content: '';
+            position: absolute;
+            width: 30%;
+            height: 2px;
+            background-color: var(--color-primary);
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+          }
+        }
+      }
+    }
+  }
+  
+  .mobile-nav-socials {
+    display: flex;
+    gap: 1.5rem;
+    margin-top: 3rem;
+    
+    a {
+      color: var(--color-text-muted);
+      transition: color 0.2s ease, transform 0.2s ease;
+      
+      &:hover {
+        color: var(--color-primary);
+        transform: translateY(-3px);
+      }
+    }
+  }
+}
+
+// Add backdrop blur in dark mode for a more modern look
+[data-theme="dark"] .site-header {
+  background-color: rgba(15, 23, 42, 0.8);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
