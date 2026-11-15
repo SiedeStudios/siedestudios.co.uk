@@ -4,6 +4,8 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\MassPrunable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Str;
@@ -12,6 +14,8 @@ use Illuminate\Support\Str;
 #[Hidden(['password'])]
 class Share extends Model
 {
+    use MassPrunable;
+
     public const LANGUAGES = [
         'plaintext', 'lua', 'php', 'javascript', 'typescript', 'json', 'html', 'css', 'scss',
         'sql', 'bash', 'python', 'yaml', 'ini', 'markdown', 'csharp', 'cpp', 'xml', 'diff',
@@ -48,6 +52,14 @@ class Share extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    /**
+     * Expired shares are removed by the scheduled model:prune command.
+     */
+    public function prunable(): Builder
+    {
+        return static::query()->whereNotNull('expires_at')->where('expires_at', '<', now()->subDay());
     }
 
     public function isExpired(): bool
