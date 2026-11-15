@@ -6,7 +6,7 @@ import BrandIcon from '@/components/BrandIcon.vue';
 import LogoMark from '@/components/LogoMark.vue';
 import Aurora from '@/components/Aurora.vue';
 
-defineProps({ configured: Boolean });
+defineProps({ configured: Boolean, devLogin: Boolean });
 const error = computed(() => usePage().props.flash?.error);
 </script>
 
@@ -28,9 +28,14 @@ const error = computed(() => usePage().props.flash?.error);
             <a v-if="configured" href="/auth/discord" class="btn btn-lg mt-8 w-full bg-[#5865F2] text-white shadow-[0_14px_40px_-12px_#5865F2] hover:bg-[#4752c4]">
                 <BrandIcon name="discord" :size="20" /> Continue with Discord
             </a>
-            <div v-else class="mt-8 rounded-xl bg-amber-400/10 p-4 text-left text-sm text-amber-200">
+            <div v-else-if="!devLogin" class="mt-8 rounded-xl bg-amber-400/10 p-4 text-left text-sm text-amber-200">
                 Discord login isn't configured yet. Set <code class="font-mono text-xs">DISCORD_CLIENT_ID</code>, <code class="font-mono text-xs">DISCORD_CLIENT_SECRET</code> and <code class="font-mono text-xs">ADMIN_DISCORD_IDS</code> in your <code class="font-mono text-xs">.env</code>.
             </div>
+
+            <template v-if="devLogin">
+                <a href="/dev/login" class="btn btn-glass btn-lg mt-3 w-full">Demo sign-in</a>
+                <p class="mt-2 text-xs text-amber-300">Demo mode — only available in local / Codespaces environments.</p>
+            </template>
 
             <p class="mt-6 flex items-center justify-center gap-1.5 text-xs text-muted"><ShieldCheck :size="13" /> Only allow-listed Discord IDs can access this area.</p>
         </div>

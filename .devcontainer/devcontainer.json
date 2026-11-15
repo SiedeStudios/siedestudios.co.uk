@@ -1,0 +1,22 @@
+{
+    "name": "SiedeStudios",
+    "dockerComposeFile": "docker-compose.yml",
+    "service": "app",
+    "workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
+    "features": {
+        "ghcr.io/devcontainers/features/node:1": { "version": "22" }
+    },
+    "forwardPorts": [8000],
+    "portsAttributes": {
+        "8000": { "label": "SiedeStudios", "onAutoForward": "openBrowser" }
+    },
+    "postCreateCommand": "bash .devcontainer/setup.sh",
+    "postStartCommand": "bash .devcontainer/serve.sh",
+    "customizations": {
+        "codespaces": { "openFiles": ["README.md"] },
+        "vscode": {
+            "extensions": ["Vue.volar", "bmewburn.vscode-intelephense-client", "bradlc.vscode-tailwindcss"]
+        }
+    },
+    "hostRequirements": { "cpus": 2, "memory": "4gb" }
+}

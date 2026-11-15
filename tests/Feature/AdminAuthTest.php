@@ -88,4 +88,10 @@ class AdminAuthTest extends TestCase
         $this->actingAs($admin)->post('/logout')->assertRedirect('/');
         $this->assertGuest();
     }
+
+    public function test_demo_login_does_not_exist_outside_local_dev(): void
+    {
+        $this->get('/dev/login')->assertNotFound();
+        $this->get('/admin/login')->assertInertia(fn ($page) => $page->where('devLogin', false));
+    }
 }

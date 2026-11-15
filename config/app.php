@@ -42,6 +42,12 @@ return [
     'debug' => (bool) env('APP_DEBUG', false),
 
     /*
+    | Demo sign-in for GitHub Codespaces / local development only. The route is
+    | never registered unless APP_ENV=local AND DEV_LOGIN=true.
+    */
+    'dev_login' => (bool) env('DEV_LOGIN', false),
+
+    /*
     |--------------------------------------------------------------------------
     | Application URL
     |--------------------------------------------------------------------------

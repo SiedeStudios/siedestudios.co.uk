@@ -6,6 +6,16 @@ Portfolio, client payments and studio tools for [siedestudios.co.uk](https://sie
 - **Hidden tools:** a private pastebin (`/s/{id}`) and testimonial invite links (`/testimonial/{token}`).
 - **Admin panel** at `/admin`, with **Discord-only sign-in**. It has a dashboard, projects, categories, services, testimonials, invoices, the PayPal IPN log, shares, messages and settings. Settings are stored in the database and include logo, favicon, social image, accent colour and PayPal email uploads/fields.
 
+[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/SiedeStudios/siedestudios.co.uk?ref=redesign)
+
+## Try it in your browser (GitHub Codespaces)
+
+Open **<https://codespaces.new/SiedeStudios/siedestudios.co.uk?ref=redesign>** and click **Create codespace**. The first build takes about 3–5 minutes. It starts PHP and a MySQL 8 container, installs everything, loads demo content, and opens the site on port 8000.
+
+- Admin: go to `/admin` and click **Demo sign-in**. This button only exists in Codespaces and local dev (`APP_ENV=local` with `DEV_LOGIN=true`). It is never available on a production server.
+- The PayPal checkout runs in sandbox mode with a placeholder business email, so it won't take real payments.
+- If the site isn't running after the codespace restarts, run `bash .devcontainer/serve.sh`.
+
 ---
 
 ## Install on a server

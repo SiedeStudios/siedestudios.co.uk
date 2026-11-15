@@ -21,6 +21,7 @@ class DiscordAuthController extends Controller
     {
         return Inertia::render('Admin/Login', [
             'configured' => filled(config('services.discord.client_id')) && filled(config('services.discord.client_secret')),
+            'devLogin' => app()->environment('local') && config('app.dev_login'),
         ]);
     }
 

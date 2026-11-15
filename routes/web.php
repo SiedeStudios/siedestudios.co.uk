@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Auth\DevLoginController;
 use App\Http\Controllers\Auth\DiscordAuthController;
 use App\Http\Controllers\ContactController;
 use App\Http\Controllers\HomeController;
@@ -42,5 +43,10 @@ Route::middleware('guest')->group(function () {
     Route::get('/auth/discord', [DiscordAuthController::class, 'redirect'])->middleware('throttle:public-forms')->name('auth.discord');
     Route::get('/auth/discord/callback', [DiscordAuthController::class, 'callback'])->name('auth.discord.callback');
 });
+
+// Demo admin sign-in — only exists in local/Codespaces environments with DEV_LOGIN=true.
+if (app()->environment('local') && config('app.dev_login')) {
+    Route::get('/dev/login', DevLoginController::class)->middleware('guest')->name('dev.login');
+}
 
 Route::post('/logout', [DiscordAuthController::class, 'logout'])->middleware('auth')->name('logout');
