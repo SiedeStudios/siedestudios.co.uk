@@ -2,7 +2,7 @@
 #
 # SiedeStudios — deploy the latest code to an installed server.
 #
-#   sudo bash /var/www/siedestudios.co.uk/public_html/deploy/update.sh
+#   sudo bash /var/www/siedestudios/deploy/update.sh
 #
 # Puts the site into maintenance mode, pulls the branch, installs
 # dependencies, rebuilds assets, migrates and re-warms caches.
