@@ -67,7 +67,7 @@ return [
             'fields' => [
                 'paypal_email' => ['type' => 'email', 'label' => 'PayPal business email', 'default' => null, 'rules' => ['nullable', 'email', 'max:120'], 'help' => 'Payments are only accepted when the IPN receiver matches this address.'],
                 'paypal_sandbox' => ['type' => 'toggle', 'label' => 'Sandbox mode', 'default' => '0', 'rules' => ['boolean'], 'help' => 'Use PayPal sandbox for checkout and IPN verification.'],
-                'currency' => ['type' => 'select', 'label' => 'Default currency', 'default' => 'GBP', 'options' => 'currencies', 'rules' => ['required', 'string', 'size:3']],
+                'currency' => ['type' => 'select', 'label' => 'Default currency', 'default' => 'GBP', 'options' => 'currencies', 'rules' => ['required', 'string', 'size:3'], 'public' => true],
                 'invoice_prefix' => ['type' => 'text', 'label' => 'Invoice prefix', 'default' => 'SS', 'rules' => ['required', 'alpha_num', 'max:6']],
                 'business_name' => ['type' => 'text', 'label' => 'Business name on invoices', 'default' => 'SiedeStudios', 'rules' => ['nullable', 'string', 'max:120']],
                 'business_address' => ['type' => 'textarea', 'label' => 'Business address', 'default' => null, 'rules' => ['nullable', 'string', 'max:300']],

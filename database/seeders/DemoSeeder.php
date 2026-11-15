@@ -10,6 +10,7 @@ use App\Models\Project;
 use App\Models\Service;
 use App\Models\Share;
 use App\Models\Testimonial;
+use App\Support\Settings;
 use Illuminate\Database\Seeder;
 
 /**
@@ -29,6 +30,13 @@ class DemoSeeder extends Seeder
         }
 
         $this->call(DatabaseSeeder::class);
+
+        app(Settings::class)->set([
+            'paypal_email' => 'payments-sandbox@example.com',
+            'paypal_sandbox' => true,
+            'discord_handle' => 'siedestudios',
+            'github_url' => 'https://github.com/siedestudios',
+        ]);
 
         $projects = Project::pluck('id', 'slug');
 
