@@ -4,9 +4,9 @@
 #
 # Installs everything the site needs on a fresh Ubuntu (22.04/24.04) or
 # Debian (12/13) server, clones the repository into
-# /var/www/siedestudios.co.uk/public_html, configures Nginx + PHP-FPM,
-# MariaDB, the Laravel scheduler, and issues a Let's Encrypt SSL
-# certificate with automatic renewal.
+# /var/www/siedestudios.co.uk/public_html, creates its own MySQL database,
+# configures Nginx + PHP-FPM and the Laravel scheduler, and issues a
+# Let's Encrypt SSL certificate with automatic renewal.
 #
 # Safe to re-run: existing .env values, database and certificates are kept.
 #
@@ -18,7 +18,8 @@
 #   DOMAIN=siedestudios.co.uk LE_EMAIL=you@example.com bash deploy/install.sh
 #
 # Variables: DOMAIN, WWW (yes|no), LE_EMAIL, APP_DIR, REPO_URL, BRANCH,
-#            DB_DRIVER (mysql|sqlite), DB_NAME, DB_USER, DB_PASS,
+#            DB_NAME, DB_USER, DB_PASS, MYSQL_ROOT_PASSWORD (only if root
+#            can't log in via the local socket),
 #            DISCORD_CLIENT_ID, DISCORD_CLIENT_SECRET, ADMIN_DISCORD_IDS,
 #            PHP_VERSION (default 8.3), SKIP_SSL=1, NONINTERACTIVE=1
 
@@ -33,7 +34,6 @@ REPO_URL="${REPO_URL:-https://github.com/SiedeStudios/siedestudios.co.uk.git}"
 BRANCH="${BRANCH:-main}"
 PHP_VERSION="${PHP_VERSION:-8.3}"
 NODE_MAJOR="${NODE_MAJOR:-22}"
-DB_DRIVER="${DB_DRIVER:-mysql}"
 DB_NAME="${DB_NAME:-siedestudios}"
 DB_USER="${DB_USER:-siedestudios}"
 WEB_USER="www-data"
@@ -121,7 +121,6 @@ step "Configuration"
 ask DOMAIN "Domain name" "$DOMAIN"
 ask WWW "Also serve www.${DOMAIN}? (yes/no)" "yes"
 ask LE_EMAIL "Email for Let's Encrypt expiry notices" ""
-ask DB_DRIVER "Database (mysql/sqlite)" "$DB_DRIVER"
 
 EXISTING_ENV=0
 [[ -f "$APP_DIR/.env" ]] && EXISTING_ENV=1
@@ -136,7 +135,6 @@ if [[ $EXISTING_ENV -eq 0 ]]; then
 fi
 
 [[ "$WWW" =~ ^[Yy] ]] && SERVER_NAMES="$DOMAIN www.$DOMAIN" || SERVER_NAMES="$DOMAIN"
-[[ "$DB_DRIVER" == "mysql" || "$DB_DRIVER" == "sqlite" ]] || die "DB_DRIVER must be mysql or sqlite."
 
 ok "Domain: ${SERVER_NAMES}"
 ok "App directory: ${APP_DIR}"
@@ -163,16 +161,26 @@ if ! apt-cache policy "php${PHP_VERSION}-fpm" 2>/dev/null | grep -q 'Candidate: 
     apt-get update -qq
 fi
 
-PHP_PACKAGES=(fpm cli common mbstring xml curl zip gd intl bcmath sqlite3 opcache)
-[[ "$DB_DRIVER" == "mysql" ]] && PHP_PACKAGES+=(mysql)
+PHP_PACKAGES=(fpm cli common mysql mbstring xml curl zip gd intl bcmath opcache)
 apt-get install -y -qq nginx certbot python3-certbot-nginx "${PHP_PACKAGES[@]/#/php${PHP_VERSION}-}" > /dev/null
 ok "Nginx, Certbot and PHP ${PHP_VERSION}"
 
-if [[ "$DB_DRIVER" == "mysql" ]] && ! command -v mysql > /dev/null; then
-    apt-get install -y -qq mariadb-server > /dev/null
-    systemctl enable --now mariadb > /dev/null
-    ok "MariaDB"
+# MySQL server: Ubuntu gets Oracle MySQL; Debian ships MariaDB as its MySQL
+# (default-mysql-server), which is a drop-in replacement.
+if command -v mysqld > /dev/null || command -v mariadbd > /dev/null; then
+    ok "Using the MySQL server already installed"
+else
+    if [[ "$ID" == "ubuntu" ]]; then DB_PACKAGE=mysql-server; else DB_PACKAGE=default-mysql-server; fi
+    apt-get install -y -qq "$DB_PACKAGE" > /dev/null
+    ok "Installed ${DB_PACKAGE}"
 fi
+systemctl enable --now mysql > /dev/null 2>&1 || systemctl enable --now mariadb > /dev/null 2>&1 || true
+for _ in $(seq 1 30); do
+    mysqladmin ping --silent > /dev/null 2>&1 && break
+    sleep 1
+done
+mysqladmin ping --silent > /dev/null 2>&1 || die "MySQL isn't running. Check: systemctl status mysql"
+ok "MySQL $(mysql --version | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -n1) is running"
 
 if ! command -v node > /dev/null || [[ "$(node -p 'process.versions.node.split(".")[0]')" -lt 20 ]]; then
     curl -fsSL "https://deb.nodesource.com/setup_${NODE_MAJOR}.x" | bash - > /dev/null
@@ -229,30 +237,51 @@ fi
 ok "$(git -C "$APP_DIR" log -1 --format='%h %s')"
 
 # ---------------------------------------------------------------------------
-# Database
+# MySQL database + user
 # ---------------------------------------------------------------------------
-step "Database"
-if [[ "$DB_DRIVER" == "mysql" ]]; then
-    if [[ $EXISTING_ENV -eq 1 && -n "$(get_env DB_PASSWORD)" ]]; then
-        DB_PASS="$(get_env DB_PASSWORD)"
-        DB_NAME="$(get_env DB_DATABASE)"
-        DB_USER="$(get_env DB_USERNAME)"
-        ok "Using existing credentials from .env"
-    else
-        DB_PASS="${DB_PASS:-$(openssl rand -base64 32 | tr -dc 'A-Za-z0-9' | head -c 32)}"
-        mysql <<SQL
+step "MySQL database"
+MYSQL_ROOT_CNF="$(mktemp)"
+APP_DB_CNF="$(mktemp)"
+chmod 600 "$MYSQL_ROOT_CNF" "$APP_DB_CNF"
+trap 'rm -f "$MYSQL_ROOT_CNF" "$APP_DB_CNF"' EXIT
+
+if [[ $EXISTING_ENV -eq 1 && "$(get_env DB_CONNECTION)" == "mysql" && -n "$(get_env DB_PASSWORD)" ]]; then
+    DB_NAME="$(get_env DB_DATABASE)"
+    DB_USER="$(get_env DB_USERNAME)"
+    DB_PASS="$(get_env DB_PASSWORD)"
+    ok "Reusing the database credentials in .env"
+else
+    DB_PASS="${DB_PASS:-$(openssl rand -base64 48 | tr -dc 'A-Za-z0-9' | head -c 32)}"
+fi
+[[ "$DB_NAME" =~ ^[A-Za-z0-9_]+$ && "$DB_USER" =~ ^[A-Za-z0-9_]+$ ]] || die "DB_NAME and DB_USER may only contain letters, numbers and underscores."
+[[ "$DB_PASS" != *\'* && "$DB_PASS" != *\\* && "$DB_PASS" != *\"* ]] || die "DB_PASS must not contain quotes or backslashes."
+
+# Root access: socket auth (the Ubuntu/Debian default) or a root password.
+if mysql --protocol=socket -uroot -e 'SELECT 1' > /dev/null 2>&1; then
+    printf '[client]\nuser=root\nprotocol=socket\n' > "$MYSQL_ROOT_CNF"
+else
+    ask MYSQL_ROOT_PASSWORD "MySQL root password" "" secret
+    printf '[client]\nuser=root\npassword="%s"\n' "${MYSQL_ROOT_PASSWORD:-}" > "$MYSQL_ROOT_CNF"
+    mysql --defaults-extra-file="$MYSQL_ROOT_CNF" -e 'SELECT 1' > /dev/null 2>&1 \
+        || die "Couldn't log in to MySQL as root. Re-run with MYSQL_ROOT_PASSWORD=yourpassword."
+fi
+
+# Created for both localhost (socket) and 127.0.0.1 (TCP, which Laravel uses).
+mysql --defaults-extra-file="$MYSQL_ROOT_CNF" <<SQL
 CREATE DATABASE IF NOT EXISTS \`${DB_NAME}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 CREATE USER IF NOT EXISTS '${DB_USER}'@'localhost' IDENTIFIED BY '${DB_PASS}';
+CREATE USER IF NOT EXISTS '${DB_USER}'@'127.0.0.1' IDENTIFIED BY '${DB_PASS}';
 ALTER USER '${DB_USER}'@'localhost' IDENTIFIED BY '${DB_PASS}';
+ALTER USER '${DB_USER}'@'127.0.0.1' IDENTIFIED BY '${DB_PASS}';
 GRANT ALL PRIVILEGES ON \`${DB_NAME}\`.* TO '${DB_USER}'@'localhost';
+GRANT ALL PRIVILEGES ON \`${DB_NAME}\`.* TO '${DB_USER}'@'127.0.0.1';
 FLUSH PRIVILEGES;
 SQL
-        ok "MariaDB database '${DB_NAME}' and user '${DB_USER}'"
-    fi
-else
-    touch "$APP_DIR/database/database.sqlite"
-    ok "SQLite at database/database.sqlite"
-fi
+
+printf '[client]\nuser=%s\npassword="%s"\nhost=127.0.0.1\nport=3306\n' "$DB_USER" "$DB_PASS" > "$APP_DB_CNF"
+mysql --defaults-extra-file="$APP_DB_CNF" -e 'SELECT 1' "$DB_NAME" > /dev/null 2>&1 \
+    || die "The app user couldn't connect to MySQL on 127.0.0.1:3306."
+ok "Database '${DB_NAME}' and user '${DB_USER}' ready (connection tested)"
 
 # ---------------------------------------------------------------------------
 # Environment file
@@ -276,16 +305,12 @@ set_env LOG_LEVEL warning
 set_env SESSION_SECURE_COOKIE true
 set_env INERTIA_SSR_ENABLED false
 set_env DISCORD_REDIRECT_URI "https://${DOMAIN}/auth/discord/callback"
-if [[ "$DB_DRIVER" == "mysql" ]]; then
-    set_env DB_CONNECTION mysql
-    set_env DB_HOST 127.0.0.1
-    set_env DB_PORT 3306
-    set_env DB_DATABASE "$DB_NAME"
-    set_env DB_USERNAME "$DB_USER"
-    set_env DB_PASSWORD "$DB_PASS"
-else
-    set_env DB_CONNECTION sqlite
-fi
+set_env DB_CONNECTION mysql
+set_env DB_HOST 127.0.0.1
+set_env DB_PORT 3306
+set_env DB_DATABASE "$DB_NAME"
+set_env DB_USERNAME "$DB_USER"
+set_env DB_PASSWORD "$DB_PASS"
 chmod 640 "$APP_DIR/.env"
 
 # ---------------------------------------------------------------------------
@@ -319,7 +344,6 @@ chmod 640 "$APP_DIR/.env"
 chmod +x "$APP_DIR/artisan" "$APP_DIR/deploy/"*.sh
 chown -R "$WEB_USER:$WEB_USER" "$APP_DIR"
 chmod -R ug+rwX "$APP_DIR/storage" "$APP_DIR/bootstrap/cache"
-[[ "$DB_DRIVER" == "sqlite" ]] && chmod 664 "$APP_DIR/database/database.sqlite"
 ok "Permissions"
 
 # ---------------------------------------------------------------------------

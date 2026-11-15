@@ -19,8 +19,8 @@ bash /var/www/siedestudios.co.uk/public_html/deploy/install.sh
 
 The installer asks for your domain, a Let's Encrypt email, your Discord app keys and your admin Discord ID. It then:
 
-1. Installs Nginx, PHP 8.3 (FPM), MariaDB, Node 22, Composer and Certbot.
-2. Creates the database and a production `.env` (random DB password, `APP_DEBUG=false`, secure cookies).
+1. Installs Nginx, PHP 8.3 (FPM), **MySQL**, Node 22, Composer and Certbot. Ubuntu gets MySQL 8. Debian gets MariaDB, Debian's packaged MySQL. A MySQL server that's already installed is reused.
+2. **Creates its own MySQL database and user**, with a random 32-character password, and checks that the user can connect. It then writes a production `.env` with `APP_DEBUG=false` and secure cookies.
 3. Installs dependencies, builds the front-end, migrates and seeds starter content.
 4. Configures an Nginx site for `/var/www/siedestudios.co.uk/public_html/public` with gzip, caching and security headers.
 5. **Issues a Let's Encrypt SSL certificate** for the domain (and `www.`), redirects HTTP → HTTPS, and verifies automatic renewal.
@@ -35,6 +35,8 @@ DOMAIN=siedestudios.co.uk LE_EMAIL=you@example.com \
 DISCORD_CLIENT_ID=... DISCORD_CLIENT_SECRET=... ADMIN_DISCORD_IDS=123456789012345678 \
 NONINTERACTIVE=1 bash deploy/install.sh
 ```
+
+If the MySQL root account uses a password instead of the default socket login, add `MYSQL_ROOT_PASSWORD=...` to the command. Use `DB_NAME`, `DB_USER` and `DB_PASS` to choose your own database name, user and password.
 
 > **Private repository?** Clone over SSH with a [deploy key](https://docs.github.com/en/authentication/connecting-to-github-with-ssh/managing-deploy-keys) (`git clone git@github.com:SiedeStudios/siedestudios.co.uk.git …`) and pass `REPO_URL` the same way.
 
@@ -105,12 +107,13 @@ Add a Discord webhook URL in **Settings → Notifications** to get a channel ale
 
 ## Local development
 
-Requirements: PHP 8.3+, Composer, and Node 20.19+ (or 22.12+).
+Requirements: PHP 8.3+, Composer, Node 20.19+ (or 22.12+), and MySQL 8 (or MariaDB 10.6+).
 
 ```bash
+mysql -uroot -e "CREATE DATABASE siedestudios CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"
 composer install
 npm install
-cp .env.example .env
+cp .env.example .env                      # then set DB_USERNAME / DB_PASSWORD
 php artisan key:generate
 php artisan migrate --seed
 php artisan db:seed --class=DemoSeeder   # optional sample testimonials, invoices, shares (local only)
