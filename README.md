@@ -23,37 +23,50 @@ Open **<https://codespaces.new/SiedeStudios/siedestudios.co.uk?ref=redesign>** a
 On a fresh **Ubuntu 22.04/24.04** or **Debian 12/13** server, as root:
 
 ```bash
-git clone https://github.com/SiedeStudios/siedestudios.co.uk.git /var/www/siedestudios.co.uk/public_html
-bash /var/www/siedestudios.co.uk/public_html/deploy/install.sh
+apt-get update && apt-get install -y git
+git clone -b redesign https://github.com/SiedeStudios/siedestudios.co.uk.git /var/www/siedestudios
+BRANCH=redesign bash /var/www/siedestudios/deploy/install.sh
 ```
 
-The installer asks for your domain, a Let's Encrypt email, your Discord app keys and your admin Discord ID. It then:
+(After the redesign is merged into `main`, drop `-b redesign` and `BRANCH=redesign`.)
 
-1. Installs Nginx, PHP 8.3 (FPM), **MySQL**, Node 22, Composer and Certbot. Ubuntu gets MySQL 8. Debian gets MariaDB, Debian's packaged MySQL. A MySQL server that's already installed is reused.
-2. **Creates its own MySQL database and user**, with a random 32-character password, and checks that the user can connect. It then writes a production `.env` with `APP_DEBUG=false` and secure cookies.
-3. Installs dependencies, builds the front-end, migrates and seeds starter content.
-4. Configures an Nginx site for `/var/www/siedestudios.co.uk/public_html/public` with gzip, caching and security headers.
-5. **Issues a Let's Encrypt SSL certificate** for the domain (and `www.`), redirects HTTP → HTTPS, and verifies automatic renewal.
-6. Adds the Laravel scheduler cron job (it prunes expired shares).
+The installer asks for your domain, a Let's Encrypt email, the server IP (default `138.201.130.254`), a **Cloudflare API token**, your Discord app keys and your admin Discord ID. It then:
 
-It's safe to re-run. The `.env`, database and certificate are kept. If DNS isn't pointing at the server yet, the SSL step is skipped with a warning. Re-run the installer once DNS has propagated.
+1. Installs Nginx, PHP 8.3 (FPM), **MariaDB**, Node 22, Composer and Certbot with its Cloudflare plugin.
+2. **Points your DNS at the server through the Cloudflare API.** It creates or updates the A records for the domain and `www` and removes old CNAME/AAAA records that would send traffic elsewhere. Other records, such as MX for email, are left alone.
+3. **Creates its own MariaDB database and user**, with a random 32-character password, and checks that the user can connect. It then writes a production `.env` with `APP_DEBUG=false` and secure cookies.
+4. Installs dependencies, builds the front-end, migrates and seeds starter content.
+5. Configures an Nginx site for `/var/www/siedestudios/public` with gzip, caching and security headers.
+6. **Issues a Let's Encrypt SSL certificate** for the domain and `www`, redirects HTTP → HTTPS, and verifies automatic renewal. With a Cloudflare token it uses the DNS challenge, so it works straight away even before DNS has propagated, and also with the Cloudflare proxy on.
+7. Adds the Laravel scheduler cron job (it prunes expired shares).
 
-Every prompt can be answered with an environment variable for unattended installs:
+It's safe to re-run. The `.env`, database, DNS records and certificate are kept or updated in place.
+
+### Cloudflare API token
+
+In Cloudflare, go to **My Profile → API Tokens → Create Token** and use the **Edit zone DNS** template. Under **Zone Resources**, choose **Include → Specific zone → siedestudios.co.uk**. Paste the token when the installer asks. It's stored only in `/root/.secrets/cloudflare.ini` (root-only), so certificate renewals keep working.
+
+The DNS records are created **DNS only** (grey cloud) by default. Answer `yes` to the proxy question, or set `CF_PROXIED=yes`, to put the site behind Cloudflare's proxy (orange cloud). The installer then also tries to set Cloudflare's SSL mode to **Full (strict)**. That needs the token to have **Zone Settings: Edit** too; otherwise set it in the dashboard yourself.
+
+### Unattended install
+
+Every prompt can be answered with an environment variable:
 
 ```bash
-DOMAIN=siedestudios.co.uk LE_EMAIL=you@example.com \
+BRANCH=redesign DOMAIN=siedestudios.co.uk LE_EMAIL=you@example.com \
+SERVER_IP=138.201.130.254 CF_API_TOKEN=... CF_PROXIED=no \
 DISCORD_CLIENT_ID=... DISCORD_CLIENT_SECRET=... ADMIN_DISCORD_IDS=123456789012345678 \
-NONINTERACTIVE=1 bash deploy/install.sh
+NONINTERACTIVE=1 bash /var/www/siedestudios/deploy/install.sh
 ```
 
-If the MySQL root account uses a password instead of the default socket login, add `MYSQL_ROOT_PASSWORD=...` to the command. Use `DB_NAME`, `DB_USER` and `DB_PASS` to choose your own database name, user and password.
+If the MariaDB root account uses a password instead of the default socket login, add `DB_ROOT_PASSWORD=...`. Use `DB_NAME`, `DB_USER` and `DB_PASS` to choose your own database name, user and password.
 
 > **Private repository?** Clone over SSH with a [deploy key](https://docs.github.com/en/authentication/connecting-to-github-with-ssh/managing-deploy-keys) (`git clone git@github.com:SiedeStudios/siedestudios.co.uk.git …`) and pass `REPO_URL` the same way.
 
 ### Deploying updates
 
 ```bash
-sudo bash /var/www/siedestudios.co.uk/public_html/deploy/update.sh
+sudo bash /var/www/siedestudios/deploy/update.sh
 ```
 
 This enables maintenance mode, pulls the branch, reinstalls dependencies, rebuilds assets, migrates, re-warms caches, then brings the site back up.
@@ -117,7 +130,7 @@ Add a Discord webhook URL in **Settings → Notifications** to get a channel ale
 
 ## Local development
 
-Requirements: PHP 8.3+, Composer, Node 20.19+ (or 22.12+), and MySQL 8 (or MariaDB 10.6+).
+Requirements: PHP 8.3+, Composer, Node 20.19+ (or 22.12+), and MariaDB 10.6+ (or MySQL 8).
 
 ```bash
 mysql -uroot -e "CREATE DATABASE siedestudios CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"

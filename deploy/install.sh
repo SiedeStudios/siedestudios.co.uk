@@ -3,22 +3,24 @@
 # SiedeStudios — server installer
 #
 # Installs everything the site needs on a fresh Ubuntu (22.04/24.04) or
-# Debian (12/13) server, clones the repository into
-# /var/www/siedestudios.co.uk/public_html, creates its own MySQL database,
-# configures Nginx + PHP-FPM and the Laravel scheduler, and issues a
-# Let's Encrypt SSL certificate with automatic renewal.
+# Debian (12/13) server: points the domain at this server through the
+# Cloudflare API, clones the repository into /var/www/siedestudios, creates
+# its own MariaDB database, configures Nginx + PHP-FPM and the Laravel
+# scheduler, and issues a Let's Encrypt SSL certificate with auto-renewal.
 #
 # Safe to re-run: existing .env values, database and certificates are kept.
 #
 # Usage (as root):
-#   git clone https://github.com/SiedeStudios/siedestudios.co.uk.git /var/www/siedestudios.co.uk/public_html
-#   bash /var/www/siedestudios.co.uk/public_html/deploy/install.sh
+#   git clone https://github.com/SiedeStudios/siedestudios.co.uk.git /var/www/siedestudios
+#   bash /var/www/siedestudios/deploy/install.sh
 #
 # Every prompt can be answered up-front with environment variables, e.g.
 #   DOMAIN=siedestudios.co.uk LE_EMAIL=you@example.com bash deploy/install.sh
 #
 # Variables: DOMAIN, WWW (yes|no), LE_EMAIL, APP_DIR, REPO_URL, BRANCH,
-#            DB_NAME, DB_USER, DB_PASS, MYSQL_ROOT_PASSWORD (only if root
+#            SERVER_IP (default 138.201.130.254), CF_API_TOKEN (Cloudflare
+#            token with Zone → DNS → Edit), CF_PROXIED (yes|no, default no),
+#            DB_NAME, DB_USER, DB_PASS, DB_ROOT_PASSWORD (only if root
 #            can't log in via the local socket),
 #            DISCORD_CLIENT_ID, DISCORD_CLIENT_SECRET, ADMIN_DISCORD_IDS,
 #            PHP_VERSION (default 8.3), SKIP_SSL=1, NONINTERACTIVE=1
@@ -29,7 +31,10 @@ set -Eeuo pipefail
 # Defaults
 # ---------------------------------------------------------------------------
 DOMAIN="${DOMAIN:-siedestudios.co.uk}"
-APP_DIR="${APP_DIR:-/var/www/siedestudios.co.uk/public_html}"
+APP_DIR="${APP_DIR:-/var/www/siedestudios}"
+SERVER_IP="${SERVER_IP:-138.201.130.254}"
+CF_API_BASE="${CF_API_BASE:-https://api.cloudflare.com/client/v4}"
+CF_CREDENTIALS="/root/.secrets/cloudflare.ini"
 REPO_URL="${REPO_URL:-https://github.com/SiedeStudios/siedestudios.co.uk.git}"
 BRANCH="${BRANCH:-main}"
 PHP_VERSION="${PHP_VERSION:-8.3}"
@@ -94,6 +99,21 @@ get_env() {
 
 artisan() { sudo -u "$WEB_USER" php "$APP_DIR/artisan" "$@"; }
 
+cf() {
+    # cf METHOD /path [json-body] — Cloudflare API call; prints the JSON result,
+    # returns non-zero (with Cloudflare's error message on stderr) on failure.
+    local method="$1" path="$2" body="${3:-}" out
+    local args=(-sS --max-time 30 -X "$method" "${CF_API_BASE}${path}"
+        -H "Authorization: Bearer ${CF_API_TOKEN}" -H "Content-Type: application/json")
+    [[ -n "$body" ]] && args+=(--data "$body")
+    out="$(curl "${args[@]}")" || return 1
+    if [[ "$(jq -r '.success' <<< "$out" 2> /dev/null)" != "true" ]]; then
+        printf '    Cloudflare: %s\n' "$(jq -r '[.errors[]?.message] | join("; ")' <<< "$out" 2> /dev/null || echo "$out")" >&2
+        return 1
+    fi
+    printf '%s' "$out"
+}
+
 # ---------------------------------------------------------------------------
 # Pre-flight
 # ---------------------------------------------------------------------------
@@ -121,6 +141,20 @@ step "Configuration"
 ask DOMAIN "Domain name" "$DOMAIN"
 ask WWW "Also serve www.${DOMAIN}? (yes/no)" "yes"
 ask LE_EMAIL "Email for Let's Encrypt expiry notices" ""
+ask SERVER_IP "Server IP the domain should point to" "$SERVER_IP"
+[[ "$SERVER_IP" =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]] || die "SERVER_IP must be an IPv4 address."
+
+# Reuse the token saved for certificate renewals on re-runs.
+if [[ -z "${CF_API_TOKEN:-}" && -f "$CF_CREDENTIALS" ]]; then
+    CF_API_TOKEN="$(awk -F' *= *' '/dns_cloudflare_api_token/ {print $2}' "$CF_CREDENTIALS")"
+fi
+if [[ -z "${CF_API_TOKEN:-}" ]]; then
+    info "${C_DIM}Cloudflare: My Profile → API Tokens → Create Token → \"Edit zone DNS\" template, limited to ${DOMAIN}.${C_0}"
+    ask CF_API_TOKEN "Cloudflare API token (blank to manage DNS yourself)" "" secret
+fi
+if [[ -n "${CF_API_TOKEN:-}" ]]; then
+    ask CF_PROXIED "Proxy through Cloudflare (orange cloud)? (yes/no)" "no"
+fi
 
 EXISTING_ENV=0
 [[ -f "$APP_DIR/.env" ]] && EXISTING_ENV=1
@@ -137,6 +171,7 @@ fi
 [[ "$WWW" =~ ^[Yy] ]] && SERVER_NAMES="$DOMAIN www.$DOMAIN" || SERVER_NAMES="$DOMAIN"
 
 ok "Domain: ${SERVER_NAMES}"
+ok "Points to: ${SERVER_IP}"
 ok "App directory: ${APP_DIR}"
 
 # ---------------------------------------------------------------------------
@@ -146,8 +181,8 @@ export DEBIAN_FRONTEND=noninteractive
 
 step "Installing system packages"
 apt-get update -qq
-apt-get install -y -qq ca-certificates curl gnupg git unzip lsb-release software-properties-common > /dev/null 2>&1 \
-    || apt-get install -y -qq ca-certificates curl gnupg git unzip lsb-release > /dev/null
+apt-get install -y -qq ca-certificates curl gnupg git unzip jq lsb-release software-properties-common > /dev/null 2>&1 \
+    || apt-get install -y -qq ca-certificates curl gnupg git unzip jq lsb-release > /dev/null
 ok "Base tools"
 
 if ! apt-cache policy "php${PHP_VERSION}-fpm" 2>/dev/null | grep -q 'Candidate: [0-9]'; then
@@ -162,25 +197,25 @@ if ! apt-cache policy "php${PHP_VERSION}-fpm" 2>/dev/null | grep -q 'Candidate: 
 fi
 
 PHP_PACKAGES=(fpm cli common mysql mbstring xml curl zip gd intl bcmath opcache)
-apt-get install -y -qq nginx certbot python3-certbot-nginx "${PHP_PACKAGES[@]/#/php${PHP_VERSION}-}" > /dev/null
+apt-get install -y -qq nginx certbot python3-certbot-nginx python3-certbot-dns-cloudflare "${PHP_PACKAGES[@]/#/php${PHP_VERSION}-}" > /dev/null
 ok "Nginx, Certbot and PHP ${PHP_VERSION}"
 
-# MySQL server: Ubuntu gets Oracle MySQL; Debian ships MariaDB as its MySQL
-# (default-mysql-server), which is a drop-in replacement.
-if command -v mysqld > /dev/null || command -v mariadbd > /dev/null; then
-    ok "Using the MySQL server already installed"
+# MariaDB server (reuses a MariaDB/MySQL server that's already installed).
+if command -v mariadbd > /dev/null || command -v mysqld > /dev/null; then
+    ok "Using the database server already installed"
 else
-    if [[ "$ID" == "ubuntu" ]]; then DB_PACKAGE=mysql-server; else DB_PACKAGE=default-mysql-server; fi
-    apt-get install -y -qq "$DB_PACKAGE" > /dev/null
-    ok "Installed ${DB_PACKAGE}"
+    apt-get install -y -qq mariadb-server mariadb-client > /dev/null
+    ok "Installed MariaDB"
 fi
-systemctl enable --now mysql > /dev/null 2>&1 || systemctl enable --now mariadb > /dev/null 2>&1 || true
+systemctl enable --now mariadb > /dev/null 2>&1 || systemctl enable --now mysql > /dev/null 2>&1 || true
+DB_CLI="$(command -v mariadb || command -v mysql)" || die "MariaDB client not found."
+DB_ADMIN="$(command -v mariadb-admin || command -v mysqladmin)" || die "mariadb-admin not found."
 for _ in $(seq 1 30); do
-    mysqladmin ping --silent > /dev/null 2>&1 && break
+    "$DB_ADMIN" ping --silent > /dev/null 2>&1 && break
     sleep 1
 done
-mysqladmin ping --silent > /dev/null 2>&1 || die "MySQL isn't running. Check: systemctl status mysql"
-ok "MySQL $(mysql --version | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -n1) is running"
+"$DB_ADMIN" ping --silent > /dev/null 2>&1 || die "MariaDB isn't running. Check: systemctl status mariadb"
+ok "MariaDB is running ($("$DB_CLI" --version | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | tail -n1))"
 
 if ! command -v node > /dev/null || [[ "$(node -p 'process.versions.node.split(".")[0]')" -lt 20 ]]; then
     curl -fsSL "https://deb.nodesource.com/setup_${NODE_MAJOR}.x" | bash - > /dev/null
@@ -197,6 +232,60 @@ if ! command -v composer > /dev/null; then
     rm -f /tmp/composer-setup.php
 fi
 ok "Composer $(composer --version 2>/dev/null | awk '{print $3}')"
+
+# ---------------------------------------------------------------------------
+# Cloudflare DNS — point the domain (and www) at this server
+# ---------------------------------------------------------------------------
+step "Cloudflare DNS"
+THIS_IP="$(curl -fsS4 --max-time 5 https://api.ipify.org 2> /dev/null || true)"
+if [[ -n "$THIS_IP" && "$THIS_IP" != "$SERVER_IP" ]]; then
+    warn "This machine's public IP is ${THIS_IP}, but DNS will point to ${SERVER_IP}."
+fi
+
+ZONE_ID=""
+PROXIED=false
+if [[ -z "${CF_API_TOKEN:-}" ]]; then
+    warn "No Cloudflare token — add A records for ${SERVER_NAMES} → ${SERVER_IP} yourself."
+else
+    [[ "${CF_PROXIED:-no}" =~ ^[Yy] ]] && PROXIED=true
+    cf GET /user/tokens/verify > /dev/null || die "Cloudflare rejected the API token."
+
+    # Find the zone: try the domain itself, then each parent domain.
+    candidate="$DOMAIN"
+    while [[ -z "$ZONE_ID" && "$candidate" == *.* ]]; do
+        ZONE_ID="$(cf GET "/zones?name=${candidate}" | jq -r '.result[0].id // empty')" || die "Couldn't list Cloudflare zones."
+        [[ -n "$ZONE_ID" ]] && ZONE_NAME="$candidate"
+        candidate="${candidate#*.}"
+    done
+    [[ -n "$ZONE_ID" ]] || die "No Cloudflare zone found for ${DOMAIN} — check the token has access to it."
+    ok "Zone ${ZONE_NAME}"
+
+    for name in $SERVER_NAMES; do
+        records="$(cf GET "/zones/${ZONE_ID}/dns_records?name=${name}&per_page=100")" || die "Couldn't read DNS records for ${name}."
+
+        # Records that would send traffic elsewhere: CNAMEs (can't coexist with
+        # an A record) and AAAA records pointing at the old server.
+        while IFS=$'\t' read -r id type content; do
+            [[ -z "$id" ]] && continue
+            cf DELETE "/zones/${ZONE_ID}/dns_records/${id}" > /dev/null || die "Couldn't remove ${type} ${name}."
+            info "Removed ${type} ${name} → ${content}"
+        done < <(jq -r '.result[] | select(.type == "CNAME" or .type == "AAAA") | [.id, .type, .content] | @tsv' <<< "$records")
+
+        payload="$(jq -nc --arg name "$name" --arg ip "$SERVER_IP" --argjson proxied "$PROXIED" \
+            '{type: "A", name: $name, content: $ip, ttl: 1, proxied: $proxied}')"
+        mapfile -t a_ids < <(jq -r '.result[] | select(.type == "A") | .id' <<< "$records")
+        if (( ${#a_ids[@]} > 0 )); then
+            cf PUT "/zones/${ZONE_ID}/dns_records/${a_ids[0]}" "$payload" > /dev/null || die "Couldn't update A ${name}."
+            for id in "${a_ids[@]:1}"; do
+                cf DELETE "/zones/${ZONE_ID}/dns_records/${id}" > /dev/null || die "Couldn't remove extra A ${name}."
+            done
+            ok "Updated A ${name} → ${SERVER_IP}$([[ $PROXIED == true ]] && echo ' (proxied)')"
+        else
+            cf POST "/zones/${ZONE_ID}/dns_records" "$payload" > /dev/null || die "Couldn't create A ${name}."
+            ok "Created A ${name} → ${SERVER_IP}$([[ $PROXIED == true ]] && echo ' (proxied)')"
+        fi
+    done
+fi
 
 # ---------------------------------------------------------------------------
 # PHP tuning — larger uploads for screenshots, sensible production limits
@@ -237,9 +326,9 @@ fi
 ok "$(git -C "$APP_DIR" log -1 --format='%h %s')"
 
 # ---------------------------------------------------------------------------
-# MySQL database + user
+# MariaDB database + user
 # ---------------------------------------------------------------------------
-step "MySQL database"
+step "MariaDB database"
 MYSQL_ROOT_CNF="$(mktemp)"
 APP_DB_CNF="$(mktemp)"
 chmod 600 "$MYSQL_ROOT_CNF" "$APP_DB_CNF"
@@ -257,17 +346,17 @@ fi
 [[ "$DB_PASS" != *\'* && "$DB_PASS" != *\\* && "$DB_PASS" != *\"* ]] || die "DB_PASS must not contain quotes or backslashes."
 
 # Root access: socket auth (the Ubuntu/Debian default) or a root password.
-if mysql --protocol=socket -uroot -e 'SELECT 1' > /dev/null 2>&1; then
+if "$DB_CLI" --protocol=socket -uroot -e 'SELECT 1' > /dev/null 2>&1; then
     printf '[client]\nuser=root\nprotocol=socket\n' > "$MYSQL_ROOT_CNF"
 else
-    ask MYSQL_ROOT_PASSWORD "MySQL root password" "" secret
-    printf '[client]\nuser=root\npassword="%s"\n' "${MYSQL_ROOT_PASSWORD:-}" > "$MYSQL_ROOT_CNF"
-    mysql --defaults-extra-file="$MYSQL_ROOT_CNF" -e 'SELECT 1' > /dev/null 2>&1 \
-        || die "Couldn't log in to MySQL as root. Re-run with MYSQL_ROOT_PASSWORD=yourpassword."
+    ask DB_ROOT_PASSWORD "MariaDB root password" "" secret
+    printf '[client]\nuser=root\npassword="%s"\n' "${DB_ROOT_PASSWORD:-}" > "$MYSQL_ROOT_CNF"
+    "$DB_CLI" --defaults-extra-file="$MYSQL_ROOT_CNF" -e 'SELECT 1' > /dev/null 2>&1 \
+        || die "Couldn't log in to MariaDB as root. Re-run with DB_ROOT_PASSWORD=yourpassword."
 fi
 
 # Created for both localhost (socket) and 127.0.0.1 (TCP, which Laravel uses).
-mysql --defaults-extra-file="$MYSQL_ROOT_CNF" <<SQL
+"$DB_CLI" --defaults-extra-file="$MYSQL_ROOT_CNF" <<SQL
 CREATE DATABASE IF NOT EXISTS \`${DB_NAME}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 CREATE USER IF NOT EXISTS '${DB_USER}'@'localhost' IDENTIFIED BY '${DB_PASS}';
 CREATE USER IF NOT EXISTS '${DB_USER}'@'127.0.0.1' IDENTIFIED BY '${DB_PASS}';
@@ -279,8 +368,8 @@ FLUSH PRIVILEGES;
 SQL
 
 printf '[client]\nuser=%s\npassword="%s"\nhost=127.0.0.1\nport=3306\n' "$DB_USER" "$DB_PASS" > "$APP_DB_CNF"
-mysql --defaults-extra-file="$APP_DB_CNF" -e 'SELECT 1' "$DB_NAME" > /dev/null 2>&1 \
-    || die "The app user couldn't connect to MySQL on 127.0.0.1:3306."
+"$DB_CLI" --defaults-extra-file="$APP_DB_CNF" -e 'SELECT 1' "$DB_NAME" > /dev/null 2>&1 \
+    || die "The app user couldn't connect to MariaDB on 127.0.0.1:3306."
 ok "Database '${DB_NAME}' and user '${DB_USER}' ready (connection tested)"
 
 # ---------------------------------------------------------------------------
@@ -432,39 +521,59 @@ fi
 # SSL (Let's Encrypt)
 # ---------------------------------------------------------------------------
 step "SSL certificate"
+CERT_ARGS=()
+for name in $SERVER_NAMES; do CERT_ARGS+=(-d "$name"); done
+if [[ -n "${LE_EMAIL:-}" ]]; then EMAIL_ARGS=(--email "$LE_EMAIL"); else EMAIL_ARGS=(--register-unsafely-without-email); fi
+CERT_ISSUED=0
+
 if [[ "${SKIP_SSL:-0}" == "1" ]]; then
-    warn "Skipped (SKIP_SSL=1). Run: certbot --nginx -d ${SERVER_NAMES// / -d }"
-elif [[ -z "${LE_EMAIL:-}" ]]; then
-    warn "No email given — skipping. Re-run with LE_EMAIL=you@example.com to issue the certificate."
+    warn "Skipped (SKIP_SSL=1)."
+elif [[ -n "${CF_API_TOKEN:-}" ]]; then
+    # DNS-01 challenge through Cloudflare: works before DNS has propagated and
+    # with the Cloudflare proxy on. The token is kept for automatic renewals.
+    install -d -m 700 "$(dirname "$CF_CREDENTIALS")"
+    printf 'dns_cloudflare_api_token = %s\n' "$CF_API_TOKEN" > "$CF_CREDENTIALS"
+    chmod 600 "$CF_CREDENTIALS"
+    certbot run -a dns-cloudflare -i nginx \
+        --dns-cloudflare-credentials "$CF_CREDENTIALS" --dns-cloudflare-propagation-seconds 30 \
+        "${CERT_ARGS[@]}" "${EMAIL_ARGS[@]}" \
+        --non-interactive --agree-tos --redirect --keep-until-expiring --quiet
+    CERT_ISSUED=1
+    ok "Certificate issued for ${SERVER_NAMES} (Cloudflare DNS challenge) — HTTP now redirects to HTTPS"
+
+    if [[ "$PROXIED" == "true" ]]; then
+        if cf PATCH "/zones/${ZONE_ID}/settings/ssl" '{"value":"strict"}' > /dev/null 2>&1; then
+            ok "Cloudflare SSL/TLS mode set to Full (strict)"
+        else
+            warn "Set Cloudflare → SSL/TLS → Full (strict) yourself (the token needs Zone Settings: Edit to do it)."
+        fi
+    fi
 else
-    SERVER_IP="$(curl -fsS4 --max-time 5 https://api.ipify.org 2>/dev/null || true)"
+    # HTTP-01 challenge: the domain must already resolve to this server.
     DNS_OK=1
     for name in $SERVER_NAMES; do
         RESOLVED="$(getent ahostsv4 "$name" | awk 'NR==1{print $1}')"
-        if [[ -z "$RESOLVED" ]]; then
-            warn "${name} does not resolve yet"; DNS_OK=0
-        elif [[ -n "$SERVER_IP" && "$RESOLVED" != "$SERVER_IP" ]]; then
-            warn "${name} points to ${RESOLVED}, but this server is ${SERVER_IP}"; DNS_OK=0
+        if [[ "$RESOLVED" != "$SERVER_IP" ]]; then
+            warn "${name} resolves to ${RESOLVED:-nothing}, not ${SERVER_IP}"; DNS_OK=0
         fi
     done
-
     if [[ $DNS_OK -eq 0 ]]; then
-        warn "Point your DNS A records at this server, then re-run this script to issue the certificate."
+        warn "Point your DNS at ${SERVER_IP}, then re-run this script to issue the certificate."
     else
-        CERT_ARGS=()
-        for name in $SERVER_NAMES; do CERT_ARGS+=(-d "$name"); done
-        certbot --nginx "${CERT_ARGS[@]}" \
-            --non-interactive --agree-tos --email "$LE_EMAIL" \
-            --redirect --keep-until-expiring --quiet
+        certbot --nginx "${CERT_ARGS[@]}" "${EMAIL_ARGS[@]}" \
+            --non-interactive --agree-tos --redirect --keep-until-expiring --quiet
+        CERT_ISSUED=1
         ok "Certificate issued for ${SERVER_NAMES} — HTTP now redirects to HTTPS"
-
-        # Renewal runs from certbot's systemd timer (or cron on older systems).
-        systemctl enable --now certbot.timer > /dev/null 2>&1 || true
-        mkdir -p /etc/letsencrypt/renewal-hooks/deploy
-        printf '#!/bin/sh\nsystemctl reload nginx\n' > /etc/letsencrypt/renewal-hooks/deploy/reload-nginx.sh
-        chmod +x /etc/letsencrypt/renewal-hooks/deploy/reload-nginx.sh
-        certbot renew --dry-run --quiet && ok "Automatic renewal verified (dry run)"
     fi
+fi
+
+if [[ $CERT_ISSUED -eq 1 ]]; then
+    # Renewal runs from certbot's systemd timer (or cron on older systems).
+    systemctl enable --now certbot.timer > /dev/null 2>&1 || true
+    mkdir -p /etc/letsencrypt/renewal-hooks/deploy
+    printf '#!/bin/sh\nsystemctl reload nginx\n' > /etc/letsencrypt/renewal-hooks/deploy/reload-nginx.sh
+    chmod +x /etc/letsencrypt/renewal-hooks/deploy/reload-nginx.sh
+    certbot renew --dry-run --quiet && ok "Automatic renewal verified (dry run)"
 fi
 
 # ---------------------------------------------------------------------------
@@ -486,6 +595,7 @@ ${C_GRN}${C_B}  SiedeStudios is installed.${C_0}
   Site            ${PROTO}://${DOMAIN}
   Admin panel     ${PROTO}://${DOMAIN}/admin
   Code            ${APP_DIR}
+  Server IP       ${SERVER_IP}
 
   ${C_B}Next steps${C_0}
   1. Discord Developer Portal → your app → OAuth2 → Redirects, add:
