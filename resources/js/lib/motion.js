@@ -12,8 +12,11 @@ export const prefersReducedMotion = () =>
 
 let lenis = null;
 
+// Smooth scrolling is a desktop nicety; touch devices keep native scrolling.
+const isTouchDevice = () => typeof window !== 'undefined' && !window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+
 export function startSmoothScroll() {
-    if (lenis || prefersReducedMotion()) return lenis;
+    if (lenis || prefersReducedMotion() || isTouchDevice()) return lenis;
 
     lenis = new Lenis({ lerp: 0.11, wheelMultiplier: 0.95, smoothWheel: true });
     lenis.on('scroll', ScrollTrigger.update);

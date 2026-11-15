@@ -56,12 +56,19 @@ onMounted(() => {
         },
     });
 });
-onBeforeUnmount(() => trigger?.kill());
+onBeforeUnmount(() => {
+    trigger?.kill();
+    lockScroll(false);
+});
 
 let tl;
+const lockScroll = (locked) => {
+    document.documentElement.classList.toggle('menu-open', locked);
+    locked ? getLenis()?.stop() : getLenis()?.start();
+};
+
 watch(open, (value) => {
-    const lenis = getLenis();
-    value ? lenis?.stop() : lenis?.start();
+    lockScroll(value);
     tl?.kill();
     const el = overlay.value;
     if (!el) return;
@@ -80,6 +87,7 @@ watch(open, (value) => {
 
 router.on('navigate', () => {
     open.value = false;
+    lockScroll(false);
     hidden.value = false;
 });
 </script>
@@ -128,29 +136,33 @@ router.on('navigate', () => {
             </div>
         </div>
 
-        <div id="mobile-menu" ref="overlay" class="fixed inset-0 z-[55] hidden overflow-hidden bg-bg md:hidden">
-            <div class="absolute -right-1/3 top-1/3 size-[80vw] rounded-full bg-accent/30 blur-[100px]" aria-hidden="true"></div>
-            <div class="wrap relative flex h-full flex-col justify-between pb-10 pt-28">
-                <nav class="flex flex-col gap-1" aria-label="Mobile">
-                    <Link v-for="(item, i) in nav" :key="item.href" :href="item.href" data-menu-item class="flex items-baseline justify-between border-b border-line py-4">
-                        <span class="display text-[2.75rem]" :class="activeIndex === i ? 'text-gradient' : ''">{{ item.label }}</span>
-                        <span class="mono">0{{ i + 1 }}</span>
-                    </Link>
-                    <Link href="/pay" data-menu-item class="flex items-baseline justify-between py-4 text-text-2">Pay an invoice <ArrowUpRight :size="16" /></Link>
-                </nav>
-                <div class="space-y-5">
-                    <a v-if="site.contact_email" data-menu-fade :href="`mailto:${site.contact_email}`" class="block text-lg">{{ site.contact_email }}</a>
-                    <div data-menu-fade class="flex gap-3">
-                        <a v-if="site.discord_invite" :href="site.discord_invite" target="_blank" rel="noopener" class="btn btn-glass btn-icon" aria-label="Discord"><BrandIcon name="discord" :size="18" /></a>
-                        <a v-if="site.github_url" :href="site.github_url" target="_blank" rel="noopener" class="btn btn-glass btn-icon" aria-label="GitHub"><BrandIcon name="github" :size="18" /></a>
-                        <a v-if="site.twitter_url" :href="site.twitter_url" target="_blank" rel="noopener" class="btn btn-glass btn-icon" aria-label="X"><BrandIcon name="x" :size="16" /></a>
-                    </div>
-                    <div data-menu-fade class="flex items-center gap-2 text-sm text-text-2">
-                        <span class="pulse-dot" :class="{ 'is-off': !site.is_available }"></span>
-                        {{ site.is_available ? site.availability : 'Fully booked' }}
+    </header>
+
+    <!-- Lives outside the header: the header is transformed (hide-on-scroll), which would trap a fixed overlay inside it. -->
+    <Teleport to="body">
+        <div id="mobile-menu" ref="overlay" class="fixed inset-0 z-40 hidden overflow-y-auto overscroll-contain bg-bg md:hidden">
+                <div class="absolute -right-1/3 top-1/3 size-[80vw] rounded-full bg-accent/30 blur-[100px]" aria-hidden="true"></div>
+                <div class="wrap relative flex h-full flex-col justify-between pb-10 pt-28">
+                    <nav class="flex flex-col gap-1" aria-label="Mobile">
+                        <Link v-for="(item, i) in nav" :key="item.href" :href="item.href" data-menu-item class="flex items-baseline justify-between border-b border-line py-4">
+                            <span class="display text-[2.75rem]" :class="activeIndex === i ? 'text-gradient' : ''">{{ item.label }}</span>
+                            <span class="mono">0{{ i + 1 }}</span>
+                        </Link>
+                        <Link href="/pay" data-menu-item class="flex items-baseline justify-between py-4 text-text-2">Pay an invoice <ArrowUpRight :size="16" /></Link>
+                    </nav>
+                    <div class="space-y-5">
+                        <a v-if="site.contact_email" data-menu-fade :href="`mailto:${site.contact_email}`" class="block text-lg">{{ site.contact_email }}</a>
+                        <div data-menu-fade class="flex gap-3">
+                            <a v-if="site.discord_invite" :href="site.discord_invite" target="_blank" rel="noopener" class="btn btn-glass btn-icon" aria-label="Discord"><BrandIcon name="discord" :size="18" /></a>
+                            <a v-if="site.github_url" :href="site.github_url" target="_blank" rel="noopener" class="btn btn-glass btn-icon" aria-label="GitHub"><BrandIcon name="github" :size="18" /></a>
+                            <a v-if="site.twitter_url" :href="site.twitter_url" target="_blank" rel="noopener" class="btn btn-glass btn-icon" aria-label="X"><BrandIcon name="x" :size="16" /></a>
+                        </div>
+                        <div data-menu-fade class="flex items-center gap-2 text-sm text-text-2">
+                            <span class="pulse-dot" :class="{ 'is-off': !site.is_available }"></span>
+                            {{ site.is_available ? site.availability : 'Fully booked' }}
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
-    </header>
+    </Teleport>
 </template>

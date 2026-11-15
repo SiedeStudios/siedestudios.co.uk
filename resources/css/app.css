@@ -591,3 +591,9 @@ html.lenis body {
 .hljs-addition { color: #7dd3a8; background: rgb(61 220 132 / 0.08); }
 .hljs-deletion { color: #ff8a9c; background: rgb(220 20 60 / 0.1); }
 .hljs-tag, .hljs-name { color: #ff6b86; }
+
+/* Mobile menu open: freeze the page underneath. */
+html.menu-open,
+html.menu-open body {
+    overflow: hidden;
+}
