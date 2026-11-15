@@ -2,227 +2,139 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Enums\TestimonialStatus;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\TestimonialRequest;
+use App\Models\Project;
 use App\Models\Testimonial;
+use App\Support\Media;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\Rule;
+use Inertia\Inertia;
+use Inertia\Response;
 
 class TestimonialController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     *
-     * @param \Illuminate\Http\Request $request
-     * @return \Illuminate\View\View
-     */
-    public function index(Request $request)
+    public function index(Request $request): Response
     {
-        $query = Testimonial::query();
+        $status = $request->string('status')->toString();
+        $status = TestimonialStatus::tryFrom($status)?->value;
 
-        // Handle search functionality
-        if ($request->filled('search')) {
-            $search = $request->search;
-            $query->where(function ($q) use ($search) {
-                $q->where('client_name', 'like', "%{$search}%")
-                  ->orWhere('company', 'like', "%{$search}%")
-                  ->orWhere('testimonial_text', 'like', "%{$search}%");
-            });
-        }
+        $counts = Testimonial::query()->selectRaw('status, count(*) as total')->groupBy('status')->pluck('total', 'status');
 
-        // Handle status filter
-        if ($request->filled('status') && $request->status !== 'all') {
-            $query->where('is_active', $request->status === 'active');
-        }
-
-        // Get testimonials with pagination
-        $testimonials = $query->orderBy('order')->orderBy('created_at', 'desc')->paginate(10);
-
-        return view('admin.testimonials.index', compact('testimonials'));
+        return Inertia::render('Admin/Testimonials/Index', [
+            'testimonials' => Testimonial::with('project:id,title')
+                ->when($status, fn ($q) => $q->where('status', $status))
+                ->orderByRaw("case status when 'pending' then 0 when 'invited' then 1 when 'approved' then 2 else 3 end")
+                ->latest('id')
+                ->get()
+                ->map(fn (Testimonial $t) => [
+                    'id' => $t->id,
+                    'name' => $t->name,
+                    'company' => $t->company,
+                    'role' => $t->role,
+                    'avatar' => $t->avatar_url,
+                    'body' => $t->body,
+                    'rating' => $t->rating,
+                    'status' => $t->status->value,
+                    'is_featured' => $t->is_featured,
+                    'project' => $t->project?->title,
+                    'invite_url' => route('testimonial.show', $t->token),
+                    'submitted_at' => $t->submitted_at?->toIso8601String(),
+                ]),
+            'counts' => $counts,
+            'filter' => $status,
+        ]);
     }
 
-    /**
-     * Show the form for creating a new resource.
-     *
-     * @return \Illuminate\View\View
-     */
-    public function create()
+    public function create(): Response
     {
-        return view('admin.testimonials.form');
+        return $this->form(null);
     }
 
-    /**
-     * Store a newly created resource in storage.
-     *
-     * @param \Illuminate\Http\Request $request
-     * @return \Illuminate\Http\RedirectResponse
-     */
-    public function store(Request $request)
+    public function store(TestimonialRequest $request): RedirectResponse
     {
-        $validated = $request->validate([
-            'client_name' => 'required|string|max:255',
-            'company' => 'nullable|string|max:255',
-            'testimonial_text' => 'required|string',
-            'image' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
-            'is_active' => 'boolean',
+        $testimonial = new Testimonial(['status' => TestimonialStatus::Invited]);
+        $this->fill($testimonial, $request);
+        $testimonial->save();
+
+        return redirect()->route('admin.testimonials.edit', $testimonial)
+            ->with('success', 'Invite created — copy the link and send it to '.$testimonial->name.'.');
+    }
+
+    public function edit(Testimonial $testimonial): Response
+    {
+        return $this->form($testimonial);
+    }
+
+    public function update(TestimonialRequest $request, Testimonial $testimonial): RedirectResponse
+    {
+        $this->fill($testimonial, $request);
+        $testimonial->save();
+
+        return back()->with('success', 'Testimonial saved.');
+    }
+
+    public function status(Request $request, Testimonial $testimonial): RedirectResponse
+    {
+        $status = TestimonialStatus::from($request->validate([
+            'status' => ['required', Rule::enum(TestimonialStatus::class)],
+        ])['status']);
+
+        $testimonial->update([
+            'status' => $status,
+            'approved_at' => $status === TestimonialStatus::Approved ? now() : null,
         ]);
 
-        try {
-            // Handle image upload
-            if ($request->hasFile('image')) {
-                $imageName = time() . '_' . $request->file('image')->getClientOriginalName();
-                $request->file('image')->storeAs('public/testimonials', $imageName);
-                $validated['image'] = $imageName;
-            }
-
-            // Set is_active to false if not in request
-            $validated['is_active'] = $request->has('is_active');
-
-            // Get the next order value
-            $maxOrder = Testimonial::max('order') ?? 0;
-            $validated['order'] = $maxOrder + 1;
-
-            Testimonial::create($validated);
-
-            return redirect()->route('admin.testimonials.index')
-                ->with('success', 'Testimonial created successfully.');
-        } catch (\Exception $e) {
-            Log::error('Failed to create testimonial: ' . $e->getMessage());
-            
-            return redirect()->back()
-                ->withInput()
-                ->with('error', 'Failed to create testimonial. Please try again.');
-        }
+        return back()->with('success', 'Testimonial '.$status->value.'.');
     }
 
-    /**
-     * Show the form for editing the specified resource.
-     *
-     * @param \App\Models\Testimonial $testimonial
-     * @return \Illuminate\View\View
-     */
-    public function edit(Testimonial $testimonial)
+    public function destroy(Testimonial $testimonial): RedirectResponse
     {
-        return view('admin.testimonials.form', compact('testimonial'));
+        Media::delete($testimonial->avatar);
+        $testimonial->delete();
+
+        return redirect()->route('admin.testimonials.index')->with('success', 'Testimonial deleted.');
     }
 
-    /**
-     * Update the specified resource in storage.
-     *
-     * @param \Illuminate\Http\Request $request
-     * @param \App\Models\Testimonial $testimonial
-     * @return \Illuminate\Http\RedirectResponse
-     */
-    public function update(Request $request, Testimonial $testimonial)
+    private function form(?Testimonial $testimonial): Response
     {
-        $validated = $request->validate([
-            'client_name' => 'required|string|max:255',
-            'company' => 'nullable|string|max:255',
-            'testimonial_text' => 'required|string',
-            'image' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:2048',
-            'is_active' => 'boolean',
+        return Inertia::render('Admin/Testimonials/Form', [
+            'testimonial' => $testimonial ? [
+                ...$testimonial->only(['id', 'name', 'company', 'role', 'project_id', 'body', 'rating', 'is_featured']),
+                'status' => $testimonial->status->value,
+                'avatar' => $testimonial->avatar_url,
+                'invite_url' => route('testimonial.show', $testimonial->token),
+                'submitted_at' => $testimonial->submitted_at?->toIso8601String(),
+            ] : null,
+            'projects' => Project::ordered()->get(['id', 'title']),
+            'statuses' => array_column(TestimonialStatus::cases(), 'value'),
         ]);
-
-        try {
-            // Handle image upload
-            if ($request->hasFile('image')) {
-                // Delete old image if it exists
-                if ($testimonial->image) {
-                    Storage::delete('public/testimonials/' . $testimonial->image);
-                }
-
-                $imageName = time() . '_' . $request->file('image')->getClientOriginalName();
-                $request->file('image')->storeAs('public/testimonials', $imageName);
-                $validated['image'] = $imageName;
-            }
-
-            // Set is_active to false if not in request
-            $validated['is_active'] = $request->has('is_active');
-
-            $testimonial->update($validated);
-
-            return redirect()->route('admin.testimonials.index')
-                ->with('success', 'Testimonial updated successfully.');
-        } catch (\Exception $e) {
-            Log::error('Failed to update testimonial: ' . $e->getMessage());
-            
-            return redirect()->back()
-                ->withInput()
-                ->with('error', 'Failed to update testimonial. Please try again.');
-        }
     }
 
-    /**
-     * Remove the specified resource from storage.
-     *
-     * @param \App\Models\Testimonial $testimonial
-     * @return \Illuminate\Http\RedirectResponse
-     */
-    public function destroy(Testimonial $testimonial)
+    private function fill(Testimonial $testimonial, TestimonialRequest $request): void
     {
-        try {
-            // Delete image if it exists
-            if ($testimonial->image) {
-                Storage::delete('public/testimonials/' . $testimonial->image);
+        $data = $request->safe()->except(['avatar', 'remove_avatar']);
+
+        if (isset($data['status'])) {
+            $status = TestimonialStatus::from($data['status']);
+            if ($status === TestimonialStatus::Approved && $testimonial->status !== TestimonialStatus::Approved) {
+                $data['approved_at'] = now();
             }
-
-            $testimonial->delete();
-
-            return redirect()->route('admin.testimonials.index')
-                ->with('success', 'Testimonial deleted successfully.');
-        } catch (\Exception $e) {
-            Log::error('Failed to delete testimonial: ' . $e->getMessage());
-            
-            return redirect()->back()
-                ->with('error', 'Failed to delete testimonial. Please try again.');
+        } else {
+            unset($data['status']);
         }
-    }
 
-    /**
-     * Update the order of testimonials.
-     *
-     * @param \Illuminate\Http\Request $request
-     * @return \Illuminate\Http\JsonResponse
-     */
-    public function updateOrder(Request $request)
-    {
-        $request->validate([
-            'items' => 'required|array',
-            'items.*' => 'integer|exists:testimonials,id',
-        ]);
+        $testimonial->fill($data);
 
-        try {
-            foreach ($request->items as $index => $id) {
-                Testimonial::where('id', $id)->update(['order' => $index + 1]);
-            }
-
-            return response()->json(['success' => true]);
-        } catch (\Exception $e) {
-            Log::error('Failed to update order: ' . $e->getMessage());
-            
-            return response()->json(['success' => false, 'message' => 'Failed to update order'], 500);
+        if ($request->boolean('remove_avatar') || $request->hasFile('avatar')) {
+            Media::delete($testimonial->getOriginal('avatar'));
+            $testimonial->avatar = null;
         }
-    }
 
-    /**
-     * Toggle the active status of a testimonial.
-     *
-     * @param \App\Models\Testimonial $testimonial
-     * @return \Illuminate\Http\RedirectResponse
-     */
-    public function toggleStatus(Testimonial $testimonial)
-    {
-        try {
-            $testimonial->update([
-                'is_active' => !$testimonial->is_active,
-            ]);
-
-            return redirect()->back()->with('success', 'Testimonial status updated.');
-        } catch (\Exception $e) {
-            Log::error('Failed to toggle testimonial status: ' . $e->getMessage());
-            
-            return redirect()->back()
-                ->with('error', 'Failed to update testimonial status. Please try again.');
+        if ($request->hasFile('avatar')) {
+            $testimonial->avatar = $request->file('avatar')->store('avatars', 'public');
         }
     }
 }
