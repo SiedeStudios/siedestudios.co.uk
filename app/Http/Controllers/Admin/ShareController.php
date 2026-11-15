@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\ShareRequest;
 use App\Models\Share;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Carbon;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -93,7 +94,7 @@ class ShareController extends Controller
         ]);
     }
 
-    private function expiry(?string $key): ?\Illuminate\Support\Carbon
+    private function expiry(?string $key): ?Carbon
     {
         $interval = ShareRequest::EXPIRY[$key ?? 'never'] ?? null;
 

@@ -22,9 +22,7 @@ class DiscordNotifier
 {
     private const CRIMSON = 0xDC143C;
 
-    public function __construct(private readonly Settings $settings)
-    {
-    }
+    public function __construct(private readonly Settings $settings) {}
 
     public function newMessage(Message $message): void
     {

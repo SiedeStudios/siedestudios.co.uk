@@ -63,7 +63,7 @@ class ProjectSeeder extends Seeder
                 'title' => 'SanderVK.com',
                 'slug' => 'sandervk-com',
                 'summary' => 'Personal brand website with a custom SCSS design system and hand-built interactions.',
-                'body' => "A personal website built around a bespoke SCSS design system, with custom jQuery interactions and a focus on clean, readable layout.",
+                'body' => 'A personal website built around a bespoke SCSS design system, with custom jQuery interactions and a focus on clean, readable layout.',
                 'client' => 'Sander VK',
                 'role' => 'UI/UX & front-end',
                 'year' => '2024',

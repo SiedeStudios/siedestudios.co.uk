@@ -47,7 +47,7 @@ class ProjectController extends Controller
 
     public function store(ProjectRequest $request): RedirectResponse
     {
-        $project = new Project();
+        $project = new Project;
         $this->fill($project, $request);
         $project->sort_order = (int) Project::max('sort_order') + 1;
         $project->save();

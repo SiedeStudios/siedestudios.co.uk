@@ -23,8 +23,7 @@ class IpnProcessor
         private readonly IpnListener $listener,
         private readonly Settings $settings,
         private readonly DiscordNotifier $discord,
-    ) {
-    }
+    ) {}
 
     public function handle(string $rawBody, array $fields): IpnLog
     {

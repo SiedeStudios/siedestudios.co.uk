@@ -2,9 +2,9 @@
 
 namespace App\Http\Middleware;
 
+use App\Enums\TestimonialStatus;
 use App\Models\Message;
 use App\Models\Testimonial;
-use App\Enums\TestimonialStatus;
 use App\Support\Settings;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
@@ -13,9 +13,7 @@ class HandleInertiaRequests extends Middleware
 {
     protected $rootView = 'app';
 
-    public function __construct(private readonly Settings $settings)
-    {
-    }
+    public function __construct(private readonly Settings $settings) {}
 
     public function share(Request $request): array
     {
