@@ -109,12 +109,12 @@ useMotion(root, (el) => {
         cards.forEach((card, i) => {
             const next = cards[i + 1];
             if (!next) return;
-            gsap.to(card.querySelector('[data-stack-inner]'), {
-                scale: 0.93,
-                filter: 'brightness(0.4)',
-                ease: 'none',
-                scrollTrigger: { trigger: next, start: 'top bottom', end: 'top 20%', scrub: true },
-            });
+            // Recede as the next card slides over: shrink a little and fade a dark
+            // overlay in. (Tweening `filter` from "none" starts at brightness(0),
+            // which blacked the card out the moment the next one appeared.)
+            const trigger = { trigger: next, start: 'top 85%', end: 'top 25%', scrub: true };
+            gsap.fromTo(card.querySelector('[data-stack-inner]'), { scale: 1 }, { scale: 0.94, ease: 'none', scrollTrigger: trigger });
+            gsap.fromTo(card.querySelector('[data-stack-shade]'), { opacity: 0 }, { opacity: 0.5, ease: 'power1.in', scrollTrigger: { ...trigger } });
         });
         gsap.utils.toArray('[data-stack-card] img').forEach((img) => {
             gsap.fromTo(img, { yPercent: -6 }, { yPercent: 6, ease: 'none', scrollTrigger: { trigger: img, start: 'top bottom', end: 'bottom top', scrub: true } });
@@ -232,7 +232,7 @@ useMotion(root, (el) => {
             <div class="mt-14 space-y-6 md:space-y-0">
                 <article v-for="(project, i) in projects" :key="project.id" data-stack-card class="md:sticky md:pb-8" :style="{ zIndex: i + 1, top: `${96 + i * 16}px` }">
                     <Link :href="`/projects/${project.slug}`" class="group block">
-                        <div data-stack-inner class="card-solid grid origin-top gap-8 overflow-hidden p-5 shadow-[inset_0_0_0_1px_var(--line),0_-30px_60px_-30px_rgba(0,0,0,.8)] md:min-h-[33rem] md:grid-cols-12 md:p-6 lg:p-8">
+                        <div data-stack-inner class="card-solid relative grid origin-top gap-8 overflow-hidden p-5 shadow-[inset_0_0_0_1px_var(--line),0_-30px_60px_-30px_rgba(0,0,0,.8)] md:min-h-[33rem] md:grid-cols-12 md:p-6 lg:p-8">
                             <div class="flex flex-col justify-between gap-8 p-2 md:col-span-5 lg:p-4">
                                 <div>
                                     <div class="flex items-center justify-between">
@@ -257,6 +257,7 @@ useMotion(root, (el) => {
                                 <div class="aspect-[16/10] md:aspect-auto md:h-full"></div>
                                 <div class="pointer-events-none absolute inset-0 rounded-[1.25rem] shadow-[inset_0_0_0_1px_rgb(255_255_255/.08)]"></div>
                             </div>
+                            <div data-stack-shade class="pointer-events-none absolute inset-0 z-10 hidden bg-[#09090b] opacity-0 md:block" aria-hidden="true"></div>
                         </div>
                     </Link>
                 </article>
