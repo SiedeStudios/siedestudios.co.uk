@@ -4,7 +4,10 @@ import { Head, Link } from '@inertiajs/vue3';
 import { ArrowUpRight } from 'lucide-vue-next';
 import PageHero from '@/components/PageHero.vue';
 import { useMotion } from '@/composables/useMotion';
-import { Flip, gsap, ScrollTrigger, prefersReducedMotion } from '@/lib/motion';
+import { Flip } from 'gsap/Flip';
+import { gsap, ScrollTrigger, prefersReducedMotion } from '@/lib/motion';
+
+gsap.registerPlugin(Flip);
 
 const props = defineProps({ projects: Array, categories: Array, active: String });
 
@@ -69,10 +72,10 @@ useMotion(root, () => {
 
             <div ref="grid" class="mt-10 grid gap-x-6 gap-y-14 md:grid-cols-2">
                 <article v-for="(project, i) in visible" :key="project.id" data-flip :data-flip-id="project.id" :class="i % 2 === 1 ? 'md:translate-y-20' : ''">
-                    <Link :href="`/projects/${project.slug}`" class="group block">
+                    <Link :href="`/projects/${project.slug}`" prefetch class="group block">
                         <div class="relative overflow-hidden rounded-[1.75rem] bg-surface shadow-[inset_0_0_0_1px_var(--line)]">
                             <div class="aspect-[4/3]"></div>
-                            <img v-if="project.cover" :src="project.cover" :alt="project.title" loading="lazy" class="absolute inset-0 h-[110%] w-full object-cover object-top transition-transform duration-[1.2s] ease-out-expo group-hover:scale-105" />
+                            <img v-if="project.cover" :src="project.cover" :srcset="project.cover_srcset" sizes="(min-width: 1024px) 45vw, 100vw" :alt="project.title" loading="lazy" decoding="async" class="absolute inset-0 h-[110%] w-full object-cover object-top transition-transform duration-[1.2s] ease-out-expo group-hover:scale-105" />
                             <div class="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-0 transition-opacity duration-500 group-hover:opacity-100"></div>
                             <span class="absolute bottom-5 right-5 flex h-11 items-center gap-2 rounded-full bg-text pl-4 pr-1.5 text-sm font-medium text-bg opacity-0 transition-all duration-500 ease-out-expo translate-y-3 group-hover:translate-y-0 group-hover:opacity-100">
                                 View project <span class="grid size-8 place-items-center rounded-full bg-bg text-text"><ArrowUpRight :size="14" /></span>

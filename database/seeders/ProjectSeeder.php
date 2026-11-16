@@ -28,7 +28,7 @@ class ProjectSeeder extends Seeder
                 'role' => 'Design & full-stack development',
                 'year' => '2025',
                 'tags' => ['Laravel', 'SCSS', 'jQuery', 'Payments'],
-                'cover_image' => 'images/portfolio/dashboard.png',
+                'cover_image' => 'images/portfolio/dashboard.webp',
                 'is_featured' => true,
             ],
             [
@@ -42,7 +42,7 @@ class ProjectSeeder extends Seeder
                 'year' => '2025',
                 'site_url' => 'https://sandervktours.com',
                 'tags' => ['Laravel', 'Payment gateway', 'Blog', 'Custom CSS'],
-                'cover_image' => 'images/portfolio/sandervktours-com.png',
+                'cover_image' => 'images/portfolio/sandervktours-com.webp',
                 'is_featured' => true,
             ],
             [
@@ -69,7 +69,7 @@ class ProjectSeeder extends Seeder
                 'year' => '2024',
                 'site_url' => 'https://sandervk.com',
                 'tags' => ['SCSS', 'jQuery', 'UI/UX'],
-                'cover_image' => 'images/portfolio/sandervk-com.png',
+                'cover_image' => 'images/portfolio/sandervk-com.webp',
                 'is_featured' => false,
             ],
         ];

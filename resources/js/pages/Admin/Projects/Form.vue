@@ -19,6 +19,8 @@ const form = useForm({
     project_category_id: props.project?.project_category_id ?? '',
     summary: props.project?.summary ?? '',
     body: props.project?.body ?? '',
+    results: [0, 1, 2, 3].map((i) => ({ value: props.project?.results?.[i]?.value ?? '', label: props.project?.results?.[i]?.label ?? '' })),
+    chapter_images: Object.assign([], props.project?.chapter_images ?? []).map((id) => id ?? null),
     client: props.project?.client ?? '',
     role: props.project?.role ?? '',
     year: props.project?.year ?? String(new Date().getFullYear()),
@@ -33,6 +35,18 @@ const form = useForm({
     cover: null,
     remove_cover: false,
 });
+
+// "## " headings become chapters of the scroll story (mirrors App\Support\CaseStudy).
+const chapters = computed(() => {
+    let fence = false;
+    return form.body.split(/\r?\n/).reduce((list, line) => {
+        if (/^\s*(```|~~~)/.test(line)) fence = !fence;
+        const m = !fence && line.match(/^##\s+(.+?)\s*#*\s*$/);
+        if (m) list.push(m[1].trim());
+        return list;
+    }, []);
+});
+const chapterImage = (i) => images.value.find((img) => img.id === form.chapter_images[i]);
 
 const submit = () => {
     const options = { preserveScroll: true, forceFormData: true, onSuccess: () => form.reset('cover', 'remove_cover') };
@@ -101,6 +115,36 @@ const links = [
                 <Field label="Case study" for="body" :error="form.errors.body" help="Markdown supported: ## headings, **bold**, - lists, [links](https://…)." optional>
                     <textarea id="body" v-model="form.body" rows="12" class="field font-mono text-sm leading-relaxed"></textarea>
                 </Field>
+            </section>
+
+            <section class="card-solid p-6">
+                <div class="flex flex-wrap items-baseline justify-between gap-2">
+                    <h2 class="title text-lg">Scroll story</h2>
+                    <span class="text-sm" :class="chapters.length >= 2 ? 'text-emerald-300' : 'text-muted'">{{ chapters.length >= 2 ? `${chapters.length} chapters — story layout on` : 'Add two or more ## headings to turn this on' }}</span>
+                </div>
+                <p class="mt-1 text-sm text-muted">Each <code class="font-mono text-xs">## heading</code> in the case study becomes a chapter. As visitors scroll, the screenshot beside it changes to the one you pick here (or the gallery in order).</p>
+
+                <ol v-if="chapters.length" class="mt-5 space-y-2">
+                    <li v-for="(title, i) in chapters" :key="i" class="flex items-center gap-3 rounded-2xl bg-white/[0.03] p-2.5 shadow-[inset_0_0_0_1px_var(--line)]">
+                        <span class="w-7 text-center font-mono text-xs text-muted">{{ String(i + 1).padStart(2, '0') }}</span>
+                        <span class="min-w-0 flex-1 truncate text-sm font-medium">{{ title }}</span>
+                        <img v-if="chapterImage(i)" :src="chapterImage(i).url" alt="" class="h-9 w-14 rounded-md object-cover object-top" />
+                        <select v-model="form.chapter_images[i]" class="field h-9 w-48 text-sm" :aria-label="`Screenshot for ${title}`" :disabled="!images.length">
+                            <option :value="null">{{ images.length ? 'Auto (gallery order)' : 'Upload screenshots first' }}</option>
+                            <option v-for="(img, k) in images" :key="img.id" :value="img.id">Screenshot {{ k + 1 }}{{ img.caption ? ` — ${img.caption}` : '' }}</option>
+                        </select>
+                    </li>
+                </ol>
+
+                <h3 class="mt-7 text-sm font-medium">Results</h3>
+                <p class="mt-1 text-sm text-muted">Up to four headline numbers, counted up as they scroll in. E.g. <span class="font-mono text-xs">38</span> · addons built on it.</p>
+                <div class="mt-3 grid gap-3 sm:grid-cols-2">
+                    <div v-for="(r, i) in form.results" :key="i" class="flex gap-2">
+                        <input v-model="r.value" class="field w-24 text-center font-medium" maxlength="16" placeholder="38" :aria-label="`Result ${i + 1} number`" />
+                        <input v-model="r.label" class="field flex-1" maxlength="60" placeholder="addons built on it" :aria-label="`Result ${i + 1} label`" />
+                    </div>
+                </div>
+                <p v-if="Object.keys(form.errors).some((k) => k.startsWith('results'))" class="field-error mt-2">Each result needs a short label.</p>
             </section>
 
             <section class="card-solid p-6">

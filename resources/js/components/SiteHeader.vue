@@ -109,6 +109,7 @@ router.on('navigate', () => {
                     :key="item.href"
                     :href="item.href"
                     data-nav-link
+                    prefetch
                     class="relative z-10 rounded-full px-4 py-2 text-[0.875rem] font-medium transition-colors duration-300"
                     :class="activeIndex === i ? 'text-text' : 'text-muted hover:text-text'"
                     @mouseenter="moveIndicator(i)"

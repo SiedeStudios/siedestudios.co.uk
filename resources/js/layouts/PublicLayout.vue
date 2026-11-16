@@ -4,6 +4,7 @@ import SiteHeader from '@/components/SiteHeader.vue';
 import SiteFooter from '@/components/SiteFooter.vue';
 import PageTransition from '@/components/PageTransition.vue';
 import FlashToast from '@/components/FlashToast.vue';
+import EasterEggs from '@/components/eggs/EasterEggs.vue';
 import { startSmoothScroll, stopSmoothScroll } from '@/lib/motion';
 
 onMounted(() => startSmoothScroll());
@@ -20,5 +21,6 @@ onBeforeUnmount(() => stopSmoothScroll());
         <div class="grain" aria-hidden="true"></div>
         <PageTransition />
         <FlashToast />
+        <EasterEggs />
     </div>
 </template>

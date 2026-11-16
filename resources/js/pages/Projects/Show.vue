@@ -6,6 +6,8 @@ import BrandIcon from '@/components/BrandIcon.vue';
 import StarRating from '@/components/StarRating.vue';
 import Lightbox from '@/components/Lightbox.vue';
 import Aurora from '@/components/Aurora.vue';
+import CaseStory from '@/components/case-study/CaseStory.vue';
+import ResultsBand from '@/components/case-study/ResultsBand.vue';
 import { useMotion } from '@/composables/useMotion';
 import { blurWords, gsap, prefersReducedMotion } from '@/lib/motion';
 
@@ -23,6 +25,9 @@ const linkMeta = {
 };
 const links = computed(() => Object.entries(props.project.links).map(([key, href]) => ({ key, href, ...linkMeta[key] })));
 const gallery = computed(() => props.project.images.length ? props.project.images : (props.project.cover ? [{ id: 0, url: props.project.cover, caption: null }] : []));
+
+const story = computed(() => props.project.story ?? { intro: null, chapters: [], results: [] });
+const storyMode = computed(() => story.value.chapters.length >= 2);
 
 const meta = computed(() => [
     ['Client', props.project.client],
@@ -68,32 +73,57 @@ useMotion(root, (el) => {
         <section v-if="project.cover" class="wrap">
             <div data-cover class="relative overflow-hidden rounded-[1.75rem] bg-surface">
                 <div class="aspect-[16/9]"></div>
-                <img :src="project.cover" :alt="project.title" class="absolute inset-0 h-full w-full object-cover object-top" />
+                <img :src="project.cover" :srcset="project.cover_srcset" sizes="100vw" :alt="project.title" fetchpriority="high" class="absolute inset-0 h-full w-full object-cover object-top" />
             </div>
         </section>
 
-        <section class="wrap mt-20 grid gap-14 lg:grid-cols-12">
-            <aside class="lg:col-span-4">
-                <div class="card p-7 lg:sticky lg:top-28" data-reveal>
-                    <dl class="grid grid-cols-2 gap-6 lg:grid-cols-1">
-                        <div v-for="[k, v] in meta" :key="k">
-                            <dt class="text-sm text-muted">{{ k }}</dt>
-                            <dd class="mt-1 font-medium">{{ v }}</dd>
-                        </div>
-                    </dl>
-                    <div v-if="project.tags.length" class="mt-7 border-t border-line pt-6">
-                        <div class="text-sm text-muted">Stack</div>
-                        <div class="mt-3 flex flex-wrap gap-2">
-                            <span v-for="tag in project.tags" :key="tag" class="chip">{{ tag }}</span>
+        <!-- Story layout: chapters with a pinned screenshot stage -->
+        <template v-if="storyMode">
+            <section class="wrap mt-16">
+                <dl class="flex flex-wrap gap-x-12 gap-y-6 border-y border-line py-7" data-reveal>
+                    <div v-for="[k, v] in meta" :key="k">
+                        <dt class="text-sm text-muted">{{ k }}</dt>
+                        <dd class="mt-1 font-medium">{{ v }}</dd>
+                    </div>
+                    <div v-if="project.tags.length" class="min-w-0 flex-1">
+                        <dt class="text-sm text-muted">Stack</dt>
+                        <dd class="mt-2 flex flex-wrap gap-2"><span v-for="tag in project.tags" :key="tag" class="chip">{{ tag }}</span></dd>
+                    </div>
+                </dl>
+            </section>
+            <section v-if="story.intro" class="wrap mt-20">
+                <div class="prose-studio mx-auto max-w-3xl text-[1.15rem]" data-reveal v-html="story.intro"></div>
+            </section>
+            <section v-if="story.results.length" class="wrap mt-20"><ResultsBand :results="story.results" /></section>
+            <CaseStory class="mt-16" :chapters="story.chapters" :title="project.title" />
+        </template>
+
+        <!-- Short write-ups keep the classic layout -->
+        <template v-else>
+            <section class="wrap mt-20 grid gap-14 lg:grid-cols-12">
+                <aside class="lg:col-span-4">
+                    <div class="card p-7 lg:sticky lg:top-28" data-reveal>
+                        <dl class="grid grid-cols-2 gap-6 lg:grid-cols-1">
+                            <div v-for="[k, v] in meta" :key="k">
+                                <dt class="text-sm text-muted">{{ k }}</dt>
+                                <dd class="mt-1 font-medium">{{ v }}</dd>
+                            </div>
+                        </dl>
+                        <div v-if="project.tags.length" class="mt-7 border-t border-line pt-6">
+                            <div class="text-sm text-muted">Stack</div>
+                            <div class="mt-3 flex flex-wrap gap-2">
+                                <span v-for="tag in project.tags" :key="tag" class="chip">{{ tag }}</span>
+                            </div>
                         </div>
                     </div>
-                </div>
-            </aside>
-            <article class="lg:col-span-7 lg:col-start-6">
-                <div v-if="project.body" class="prose-studio" data-reveal v-html="project.body"></div>
-                <p v-else class="lede" data-reveal>{{ project.summary }}</p>
-            </article>
-        </section>
+                </aside>
+                <article class="lg:col-span-7 lg:col-start-6">
+                    <div v-if="project.body" class="prose-studio" data-reveal v-html="project.body"></div>
+                    <p v-else class="lede" data-reveal>{{ project.summary }}</p>
+                </article>
+            </section>
+            <section v-if="story.results.length" class="wrap mt-20"><ResultsBand :results="story.results" /></section>
+        </template>
 
         <section v-if="gallery.length > 1 || project.images.length" class="wrap mt-28">
             <div class="flex items-end justify-between gap-6">
@@ -114,7 +144,7 @@ useMotion(root, (el) => {
                     @click="lightbox = i"
                 >
                     <div :class="i % 5 === 0 ? 'aspect-[16/9]' : 'aspect-[4/3]'"></div>
-                    <img :src="img.url" :alt="img.caption || `${project.title} screenshot ${i + 1}`" loading="lazy" class="absolute inset-0 h-full w-full object-cover object-top transition-transform duration-[1s] ease-out-expo group-hover:scale-105" />
+                    <img :src="img.url" :srcset="img.srcset" sizes="(min-width: 768px) 50vw, 100vw" :alt="img.caption || `${project.title} screenshot ${i + 1}`" loading="lazy" decoding="async" class="absolute inset-0 h-full w-full object-cover object-top transition-transform duration-[1s] ease-out-expo group-hover:scale-105" />
                     <span class="absolute right-4 top-4 grid size-10 place-items-center rounded-full bg-bg/60 opacity-0 backdrop-blur-md transition-opacity duration-300 group-hover:opacity-100"><Maximize2 :size="15" /></span>
                     <span v-if="img.caption" class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent p-4 pt-10 text-sm">{{ img.caption }}</span>
                 </button>

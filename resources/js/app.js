@@ -2,7 +2,6 @@ import '../css/app.css';
 
 import { createApp, h } from 'vue';
 import { createInertiaApp } from '@inertiajs/vue3';
-import { ZiggyVue } from 'ziggy-js';
 import PublicLayout from '@/layouts/PublicLayout.vue';
 import AdminLayout from '@/layouts/AdminLayout.vue';
 import BareLayout from '@/layouts/BareLayout.vue';
@@ -32,7 +31,6 @@ createInertiaApp({
     setup({ el, App, props, plugin }) {
         createApp({ render: () => h(App, props) })
             .use(plugin)
-            .use(ZiggyVue)
             .directive('magnetic', magnetic)
             .directive('spotlight', spotlight)
             .mount(el);

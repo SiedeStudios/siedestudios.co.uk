@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\ProjectRequest;
 use App\Models\Project;
 use App\Models\ProjectCategory;
+use App\Support\ImageOptimizer;
 use App\Support\Media;
 use App\Support\UniqueSlug;
 use Illuminate\Http\RedirectResponse;
@@ -105,6 +106,12 @@ class ProjectController extends Controller
     {
         $data = $request->safe()->except(['cover', 'remove_cover', 'slug']);
         $project->fill($data);
+        $project->results = collect($data['results'] ?? [])->filter(fn ($r) => filled($r['value'] ?? null))->values()->all() ?: null;
+        // Only keep chapter images that belong to this project.
+        $ids = $project->exists ? $project->images()->pluck('id')->all() : [];
+        $chosen = $data['chapter_images'] ?? [];
+        $list = $chosen ? array_map(fn ($i) => in_array((int) ($chosen[$i] ?? 0), $ids, true) ? (int) $chosen[$i] : null, range(0, max(array_keys($chosen)))) : [];
+        $project->chapter_images = array_filter($list) ? $list : null;
         $project->slug = UniqueSlug::for(Project::class, $request->input('slug') ?: $data['title'], $project->id);
 
         if ($project->status === ProjectStatus::Published && ! $project->published_at) {
@@ -117,7 +124,7 @@ class ProjectController extends Controller
         }
 
         if ($request->hasFile('cover')) {
-            $project->cover_image = $request->file('cover')->store('projects', 'public');
+            $project->cover_image = ImageOptimizer::optimize($request->file('cover')->store('projects', 'public'));
         }
     }
 }

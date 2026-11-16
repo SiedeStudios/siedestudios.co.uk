@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Project;
 use App\Models\ProjectImage;
+use App\Support\ImageOptimizer;
 use App\Support\Media;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -23,7 +24,7 @@ class ProjectImageController extends Controller
 
         foreach ($request->file('images') as $file) {
             $project->images()->create([
-                'path' => $file->store("projects/{$project->id}", 'public'),
+                'path' => ImageOptimizer::optimize($file->store("projects/{$project->id}", 'public')),
                 'sort_order' => ++$order,
             ]);
         }

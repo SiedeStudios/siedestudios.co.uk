@@ -5,9 +5,9 @@ import { ArrowUpRight, ArrowRight, Check } from 'lucide-vue-next';
 import SectionHead from '@/components/SectionHead.vue';
 import ServiceIcon from '@/components/ServiceIcon.vue';
 import StarRating from '@/components/StarRating.vue';
-import LogoMark from '@/components/LogoMark.vue';
 import Aurora from '@/components/Aurora.vue';
 import ProductCard from '@/components/ProductCard.vue';
+import LogoParticles from '@/components/LogoParticles.vue';
 import { useMotion } from '@/composables/useMotion';
 import { gsap, SplitText, blurWords, prefersReducedMotion } from '@/lib/motion';
 import { pad } from '@/lib/format';
@@ -48,32 +48,10 @@ useMotion(root, (el) => {
     if (!reduced) {
         gsap.from('[data-hero-fade]', { opacity: 0, y: 18, filter: 'blur(8px)', duration: 1.2, stagger: 0.08, delay: 0.7, clearProps: 'filter' });
 
-        // The mark draws itself, then floats.
-        const strokes = gsap.utils.toArray('[data-hero-mark] path');
-        strokes.forEach((p) => {
-            const len = p.getTotalLength();
-            gsap.set(p, { strokeDasharray: len, strokeDashoffset: len });
-        });
-        gsap.to(strokes, { strokeDashoffset: 0, duration: 1.8, ease: 'expo.inOut', stagger: 0.18, delay: 0.3 });
-        gsap.to('[data-hero-mark]', { y: -18, rotation: -3, duration: 5, ease: 'sine.inOut', yoyo: true, repeat: -1 });
-
         gsap.timeline({ scrollTrigger: { trigger: '[data-hero]', start: 'top top', end: 'bottom top', scrub: 0.8 } })
             .to('[data-hero-copy]', { yPercent: -12, opacity: 0.2, ease: 'none' }, 0)
-            .to('[data-hero-art]', { yPercent: 18, scale: 0.92, ease: 'none' }, 0);
+            .to('[data-hero-art]', { yPercent: 14, ease: 'none' }, 0);
     }
-
-    mm.add('(pointer: fine) and (prefers-reduced-motion: no-preference)', () => {
-        const hero = el.querySelector('[data-hero]');
-        const rx = gsap.quickTo('[data-hero-art]', 'rotationY', { duration: 1.4, ease: 'power3' });
-        const ry = gsap.quickTo('[data-hero-art]', 'rotationX', { duration: 1.4, ease: 'power3' });
-        const move = (e) => {
-            const r = hero.getBoundingClientRect();
-            rx(((e.clientX - r.left) / r.width - 0.5) * 18);
-            ry(((e.clientY - r.top) / r.height - 0.5) * -14);
-        };
-        hero.addEventListener('pointermove', move);
-        return () => hero.removeEventListener('pointermove', move);
-    });
 
     /* ---------- Ticker ---------- */
     const ticker = el.querySelector('[data-ticker]');
@@ -146,10 +124,9 @@ useMotion(root, (el) => {
             <Aurora follow />
             <div class="pointer-events-none absolute inset-x-0 bottom-0 h-48 bg-gradient-to-t from-bg to-transparent" aria-hidden="true"></div>
 
-            <div data-hero-art class="pointer-events-none absolute right-[-5%] top-[16%] hidden [perspective:900px] lg:block" aria-hidden="true">
-                <div data-hero-mark class="drop-shadow-[0_30px_80px_rgba(220,20,60,.35)]">
-                    <LogoMark :size="540" color="rgb(255 255 255 / 0.9)" />
-                </div>
+            <div data-hero-art class="pointer-events-none absolute right-[-4%] top-[13%] hidden lg:block" aria-hidden="true">
+                <div class="absolute inset-[18%] rounded-full bg-[radial-gradient(closest-side,rgb(220_20_60/.28),transparent)] blur-2xl"></div>
+                <LogoParticles class="relative" :size="580" />
             </div>
 
             <div class="wrap relative flex flex-1 flex-col">
@@ -233,7 +210,7 @@ useMotion(root, (el) => {
 
             <div class="mt-14 space-y-6 md:space-y-0">
                 <article v-for="(project, i) in projects" :key="project.id" data-stack-card class="md:sticky md:pb-8" :style="{ zIndex: i + 1, top: `${96 + i * 16}px` }">
-                    <Link :href="`/projects/${project.slug}`" class="group block">
+                    <Link :href="`/projects/${project.slug}`" prefetch class="group block">
                         <div data-stack-inner class="card-solid relative grid origin-top gap-8 overflow-hidden p-5 shadow-[inset_0_0_0_1px_var(--line),0_-30px_60px_-30px_rgba(0,0,0,.8)] md:min-h-[33rem] md:grid-cols-12 md:p-6 lg:p-8">
                             <div class="flex flex-col justify-between gap-8 p-2 md:col-span-5 lg:p-4">
                                 <div>
@@ -255,7 +232,7 @@ useMotion(root, (el) => {
                                 </div>
                             </div>
                             <div class="relative overflow-hidden rounded-[1.25rem] bg-surface-2 md:col-span-7">
-                                <img v-if="project.cover" :src="project.cover" :alt="project.title" loading="lazy" class="absolute inset-0 h-[112%] w-full object-cover object-top transition-transform duration-[1.2s] ease-out-expo group-hover:scale-[1.04]" />
+                                <img v-if="project.cover" :src="project.cover" :srcset="project.cover_srcset" sizes="(min-width: 768px) 55vw, 100vw" :alt="project.title" loading="lazy" decoding="async" class="absolute inset-0 h-[112%] w-full object-cover object-top transition-transform duration-[1.2s] ease-out-expo group-hover:scale-[1.04]" />
                                 <div class="aspect-[16/10] md:aspect-auto md:h-full"></div>
                                 <div class="pointer-events-none absolute inset-0 rounded-[1.25rem] shadow-[inset_0_0_0_1px_rgb(255_255_255/.08)]"></div>
                             </div>

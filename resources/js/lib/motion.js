@@ -1,10 +1,9 @@
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { SplitText } from 'gsap/SplitText';
-import { Flip } from 'gsap/Flip';
 import Lenis from 'lenis';
 
-gsap.registerPlugin(ScrollTrigger, SplitText, Flip);
+gsap.registerPlugin(ScrollTrigger, SplitText);
 gsap.defaults({ ease: 'expo.out', duration: 1 });
 
 export const prefersReducedMotion = () =>
@@ -140,4 +139,4 @@ export function splitLines(el, { delay = 0, stagger = 0.09, duration = 1.25, scr
     return null;
 }
 
-export { gsap, ScrollTrigger, SplitText, Flip };
+export { gsap, ScrollTrigger, SplitText };

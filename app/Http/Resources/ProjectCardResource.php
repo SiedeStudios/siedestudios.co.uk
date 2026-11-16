@@ -3,6 +3,7 @@
 namespace App\Http\Resources;
 
 use App\Models\Project;
+use App\Support\Media;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -20,6 +21,7 @@ class ProjectCardResource extends JsonResource
             'client' => $this->client,
             'tags' => $this->tags ?? [],
             'cover' => $this->cover_url,
+            'cover_srcset' => Media::srcset($this->cover_image),
             'is_featured' => $this->is_featured,
             'category' => $this->whenLoaded('category', fn () => $this->category ? [
                 'name' => $this->category->name,

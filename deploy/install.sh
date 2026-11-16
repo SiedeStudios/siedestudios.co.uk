@@ -99,6 +99,22 @@ get_env() {
 
 artisan() { sudo -u "$WEB_USER" php "$APP_DIR/artisan" "$@"; }
 
+enable_http2() {
+    # Certbot writes "listen 443 ssl;" — add HTTP/2 so assets load in parallel. Reverts if nginx -t fails.
+    local conf="$1"
+    [[ -f "$conf" ]] && grep -qE 'listen (\[::\]:)?443 ssl;' "$conf" || return 0
+    cp "$conf" "$conf.bak"
+    sed -i -E 's/listen (\[::\]:)?443 ssl;/listen \1443 ssl http2;/' "$conf"
+    if nginx -t > /dev/null 2>&1; then
+        rm -f "$conf.bak"
+        systemctl reload nginx
+        printf '    HTTP/2 enabled\n'
+    else
+        mv "$conf.bak" "$conf"
+        printf '    HTTP/2 not supported by this nginx — left as is\n'
+    fi
+}
+
 cf() {
     # cf METHOD /path [json-body] — Cloudflare API call; prints the JSON result,
     # returns non-zero (with Cloudflare's error message on stderr) on failure.
@@ -574,6 +590,7 @@ if [[ $CERT_ISSUED -eq 1 ]]; then
     printf '#!/bin/sh\nsystemctl reload nginx\n' > /etc/letsencrypt/renewal-hooks/deploy/reload-nginx.sh
     chmod +x /etc/letsencrypt/renewal-hooks/deploy/reload-nginx.sh
     certbot renew --dry-run --quiet && ok "Automatic renewal verified (dry run)"
+    enable_http2 "$NGINX_CONF"
 fi
 
 # ---------------------------------------------------------------------------

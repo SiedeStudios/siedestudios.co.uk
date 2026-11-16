@@ -22,7 +22,11 @@
 
         <title inertia>{{ $site['site_name'] }}</title>
 
-        @routes
+        {{-- The two text fonts are referenced from CSS, so preload them to avoid a late swap. --}}
+        @foreach (['onest/files/onest-latin-wght-normal.woff2', 'geist/files/geist-latin-wght-normal.woff2'] as $font)
+            <link rel="preload" as="font" type="font/woff2" href="{{ Vite::asset('node_modules/@fontsource-variable/'.$font) }}" crossorigin>
+        @endforeach
+
         @vite(['resources/js/app.js', "resources/js/pages/{$page['component']}.vue"])
         @inertiaHead
 

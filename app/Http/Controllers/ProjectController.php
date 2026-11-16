@@ -6,6 +6,8 @@ use App\Enums\ProjectStatus;
 use App\Http\Resources\ProjectCardResource;
 use App\Models\Project;
 use App\Models\ProjectCategory;
+use App\Support\CaseStudy;
+use App\Support\Media;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -46,6 +48,7 @@ class ProjectController extends Controller
             'project' => [
                 ...ProjectCardResource::make($project)->resolve(),
                 'body' => $project->body_html,
+                'story' => CaseStudy::build($project),
                 'role' => $project->role,
                 'links' => array_filter([
                     'site' => $project->site_url,
@@ -54,11 +57,11 @@ class ProjectController extends Controller
                     'store' => $project->store_url,
                     'video' => $project->video_url,
                 ]),
-                'images' => $project->images->map(fn ($i) => ['id' => $i->id, 'url' => $i->url, 'caption' => $i->caption]),
+                'images' => $project->images->map(fn ($i) => ['id' => $i->id, 'url' => $i->url, 'srcset' => Media::srcset($i->path), 'caption' => $i->caption]),
                 'is_draft' => $project->status !== ProjectStatus::Published,
             ],
             'testimonials' => $project->approvedTestimonials->map->toPublicArray(),
-            'next' => $next ? ['title' => $next->title, 'slug' => $next->slug, 'cover' => $next->cover_url] : null,
+            'next' => $next ? ['title' => $next->title, 'slug' => $next->slug, 'cover' => Media::small($next->cover_image) ?? $next->cover_url] : null,
         ]);
     }
 }

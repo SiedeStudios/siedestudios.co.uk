@@ -19,6 +19,22 @@ PHP_VERSION="${PHP_VERSION:-$(php -r 'echo PHP_MAJOR_VERSION.".".PHP_MINOR_VERSI
 artisan() { sudo -u "$WEB_USER" php "$APP_DIR/artisan" "$@"; }
 step() { printf '\n\e[38;5;161m==>\e[0m \e[1m%s\e[0m\n' "$*"; }
 
+enable_http2() {
+    # Certbot writes "listen 443 ssl;" — add HTTP/2 so assets load in parallel. Reverts if nginx -t fails.
+    local conf="$1"
+    [[ -f "$conf" ]] && grep -qE 'listen (\[::\]:)?443 ssl;' "$conf" || return 0
+    cp "$conf" "$conf.bak"
+    sed -i -E 's/listen (\[::\]:)?443 ssl;/listen \1443 ssl http2;/' "$conf"
+    if nginx -t > /dev/null 2>&1; then
+        rm -f "$conf.bak"
+        systemctl reload nginx
+        printf '    HTTP/2 enabled\n'
+    else
+        mv "$conf.bak" "$conf"
+        printf '    HTTP/2 not supported by this nginx — left as is\n'
+    fi
+}
+
 trap 'artisan up > /dev/null 2>&1 || true; echo "Update failed on line $LINENO — the site has been brought back up." >&2' ERR
 
 step "Maintenance mode"
@@ -36,11 +52,14 @@ sudo -u "$WEB_USER" HOME=/tmp bash -c "cd '$APP_DIR' && npm ci --no-audit --no-f
 
 step "Database & caches"
 artisan migrate --force --no-interaction
+artisan media:optimize --no-interaction
 artisan optimize:clear > /dev/null
 artisan optimize > /dev/null
 chmod -R ug+rwX "$APP_DIR/storage" "$APP_DIR/bootstrap/cache"
 
 systemctl reload "php${PHP_VERSION}-fpm" 2>/dev/null || true
+DOMAIN="$(grep -E '^APP_URL=' "$APP_DIR/.env" | cut -d= -f2- | tr -d '"' | sed -E 's#^https?://##; s#/.*$##')"
+enable_http2 "/etc/nginx/sites-available/${DOMAIN}.conf"
 artisan up > /dev/null
 
 printf '\n\e[32m✓ Deployed %s\e[0m\n' "$(git -C "$APP_DIR" log -1 --format='%h')"
