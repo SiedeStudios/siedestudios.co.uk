@@ -4,6 +4,7 @@ use App\Http\Controllers\Auth\DevLoginController;
 use App\Http\Controllers\Auth\DiscordAuthController;
 use App\Http\Controllers\ContactController;
 use App\Http\Controllers\HomeController;
+use App\Http\Controllers\LegalController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\PayPalIpnController;
 use App\Http\Controllers\ProjectController;
@@ -23,6 +24,10 @@ Route::get('/services', ServiceController::class)->name('services');
 
 Route::get('/store', StoreController::class)->name('store');
 Route::get('/status', StatusController::class)->name('status');
+
+Route::get('/privacy', [LegalController::class, 'privacy'])->name('legal.privacy');
+Route::get('/cookies', [LegalController::class, 'cookies'])->name('legal.cookies');
+Route::get('/terms', [LegalController::class, 'terms'])->name('legal.terms');
 
 Route::get('/contact', [ContactController::class, 'show'])->name('contact');
 Route::post('/contact', [ContactController::class, 'store'])->middleware('throttle:contact')->name('contact.store');

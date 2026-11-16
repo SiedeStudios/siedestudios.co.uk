@@ -10,7 +10,7 @@ const props = defineProps({ token: String, invite: Object, submitted: Boolean })
 
 const done = ref(props.submitted);
 const card = ref(null);
-const form = useForm({ rating: 0, body: '' });
+const form = useForm({ rating: 0, body: '', consent: false });
 const firstName = computed(() => props.invite.name.split(' ')[0]);
 
 const submit = () => form.post(`/testimonial/${props.token}`, {
@@ -65,7 +65,13 @@ onMounted(() => {
                         <p v-if="form.errors.body" class="field-error">{{ form.errors.body }}</p>
                     </div>
 
-                    <button type="submit" class="btn btn-primary btn-lg mt-8 w-full" :disabled="form.processing || !form.rating || form.body.length < 20">
+                    <label class="mt-6 flex items-start gap-3 text-sm leading-relaxed text-text-2">
+                        <input v-model="form.consent" type="checkbox" class="mt-1 size-4 shrink-0 accent-[var(--accent)]" required />
+                        <span>I agree to my review, name, company{{ invite?.avatar ? ', photo' : '' }} and rating being published on this website. I can ask for it to be removed at any time. <a href="/privacy" target="_blank" class="link text-text">Privacy policy</a></span>
+                    </label>
+                    <p v-if="form.errors.consent" class="field-error">{{ form.errors.consent }}</p>
+
+                    <button type="submit" class="btn btn-primary btn-lg mt-8 w-full" :disabled="form.processing || !form.rating || form.body.length < 20 || !form.consent">
                         <Loader2 v-if="form.processing" :size="16" class="animate-spin" />
                         <Send v-else :size="16" />
                         Submit testimonial

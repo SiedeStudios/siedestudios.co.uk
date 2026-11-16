@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref } from 'vue';
-import { Head, useForm, usePage } from '@inertiajs/vue3';
+import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
 import { ArrowUpRight, Mail, Clock, MapPin, Check, Loader2 } from 'lucide-vue-next';
 import BrandIcon from '@/components/BrandIcon.vue';
 import Aurora from '@/components/Aurora.vue';
@@ -130,7 +130,7 @@ useMotion(root, (el) => {
                                 <input id="website" v-model="form.website" type="text" tabindex="-1" autocomplete="off" />
                             </div>
                             <div class="flex flex-wrap items-center justify-between gap-4 pt-2">
-                                <p class="text-sm text-muted">Your details are only used to reply to you.</p>
+                                <p class="max-w-sm text-sm text-muted">We'll only use your details to reply about your enquiry. See our <Link href="/privacy" class="link text-text-2">privacy policy</Link>.</p>
                                 <button type="submit" class="btn btn-primary btn-lg" :disabled="form.processing">
                                     <Loader2 v-if="form.processing" :size="16" class="animate-spin" />
                                     {{ form.processing ? 'Sending…' : 'Send message' }}

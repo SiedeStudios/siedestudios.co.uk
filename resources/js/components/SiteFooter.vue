@@ -9,6 +9,18 @@ import { gsap, blurWords, scrollToTop } from '@/lib/motion';
 
 const site = computed(() => usePage().props.site ?? {});
 const year = new Date().getFullYear();
+
+// UK Companies Act / E-Commerce Regulations: who you're dealing with.
+const businessLine = computed(() => {
+    const s = site.value;
+    const parts = [];
+    if (s.legal_name && s.legal_name !== s.site_name) parts.push(`${s.site_name} is a trading name of ${s.legal_name}`);
+    if (s.company_number) parts.push(`Registered in ${s.legal_jurisdiction ?? 'England and Wales'}, company no. ${s.company_number}`);
+    if (s.business_address) parts.push(s.business_address.replace(/\s*\n\s*/g, ', '));
+    if (s.vat_number) parts.push(`VAT ${s.vat_number}`);
+    return parts.join(' · ');
+});
+const cookieSettings = () => window.dispatchEvent(new CustomEvent('cookie-settings'));
 const root = ref(null);
 const clock = ref('');
 
@@ -122,8 +134,17 @@ onBeforeUnmount(() => {
             </div>
         </div>
 
-        <div class="wrap flex flex-col gap-4 border-t border-line py-6 text-[0.8125rem] text-muted sm:flex-row sm:items-center sm:justify-between">
-            <p>© {{ year }} {{ site.site_name }}. Crafted in the {{ site.location === 'United Kingdom' ? 'UK' : site.location }}.</p>
+        <div class="wrap flex flex-col gap-4 border-t border-line py-6 text-[0.8125rem] text-muted lg:flex-row lg:items-center lg:justify-between">
+            <div class="space-y-1.5">
+                <p>© {{ year }} {{ site.site_name }}. Crafted in the {{ site.location === 'United Kingdom' ? 'UK' : site.location }}.</p>
+                <p v-if="businessLine" class="text-xs text-faint">{{ businessLine }}</p>
+            </div>
+            <nav class="flex flex-wrap gap-x-5 gap-y-2" aria-label="Legal">
+                <Link href="/privacy" class="hover:text-text">Privacy</Link>
+                <Link href="/cookies" class="hover:text-text">Cookies</Link>
+                <Link href="/terms" class="hover:text-text">Terms</Link>
+                <button v-if="site.google_analytics_id" type="button" class="hover:text-text" @click="cookieSettings">Cookie settings</button>
+            </nav>
             <button type="button" class="group inline-flex items-center gap-2 hover:text-text" @click="scrollToTop(false)">
                 Back to top <ArrowUp :size="14" class="transition-transform duration-300 group-hover:-translate-y-0.5" />
             </button>

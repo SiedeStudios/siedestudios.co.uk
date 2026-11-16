@@ -9,7 +9,7 @@ import { money, ago } from '@/lib/format';
 
 const props = defineProps({
     currency: String, stats: Object, revenue: Array, messages: Array, pending: Array,
-    invoices: Array, payments: Array, checklist: Object,
+    invoices: Array, payments: Array, checklist: Object, legal_gaps: { type: Array, default: () => [] },
 });
 
 const user = computed(() => usePage().props.auth.user);
@@ -38,6 +38,12 @@ const moderate = (id, status) => router.patch(`/admin/testimonials/${id}/status`
 
 <template>
     <Head title="Dashboard" />
+
+    <Link v-if="legal_gaps.length" href="/admin/settings/legal" class="mb-6 flex flex-wrap items-center gap-3 rounded-2xl bg-amber-400/10 p-4 text-sm text-amber-100 shadow-[inset_0_0_0_1px_rgb(251_191_36/.2)] transition-colors hover:bg-amber-400/[0.14]">
+        <span class="font-medium text-amber-300">Legal pages incomplete:</span>
+        <span class="flex-1">add {{ legal_gaps.join(', ') }} so your privacy policy and terms meet UK requirements.</span>
+        <span class="text-amber-300">Settings → Legal &amp; business →</span>
+    </Link>
 
     <div class="mb-8 flex flex-wrap items-end justify-between gap-4">
         <div>

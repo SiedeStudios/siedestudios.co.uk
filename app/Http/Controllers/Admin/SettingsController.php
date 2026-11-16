@@ -8,6 +8,7 @@ use App\Support\Settings;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Crypt;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -67,8 +68,8 @@ class SettingsController extends Controller
             if ($field['type'] === 'secret') {
                 $rules["clear_{$key}"] = ['boolean'];
             }
-            if (($field['options'] ?? null) === 'currencies') {
-                $rules[$key][] = 'in:'.implode(',', config('site.currencies'));
+            if (isset($field['options'])) {
+                $rules[$key][] = Rule::in(config('site.'.$field['options']));
             }
         }
 

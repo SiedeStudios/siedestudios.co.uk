@@ -41,12 +41,15 @@ class TestimonialSubmissionController extends Controller
         $data = $request->validate([
             'body' => ['required', 'string', 'min:20', 'max:1500'],
             'rating' => ['required', 'integer', 'between:1,5'],
-        ]);
+            'consent' => ['accepted'],
+        ], ['consent.accepted' => 'Please confirm we can publish your review.']);
+        unset($data['consent']);
 
         $testimonial->update([
             ...$data,
             'status' => TestimonialStatus::Pending,
             'submitted_at' => now(),
+            'consented_at' => now(),
         ]);
 
         if ($settings->bool('notify_testimonials')) {

@@ -18,6 +18,10 @@ return [
 
     'currencies' => ['GBP', 'USD', 'EUR', 'CAD', 'AUD'],
 
+    'legal_entities' => ['Sole trader', 'Limited company', 'Partnership', 'LLP'],
+
+    'jurisdictions' => ['England and Wales', 'Scotland', 'Northern Ireland'],
+
     'groups' => [
 
         'general' => [
@@ -70,7 +74,7 @@ return [
                 'currency' => ['type' => 'select', 'label' => 'Default currency', 'default' => 'GBP', 'options' => 'currencies', 'rules' => ['required', 'string', 'size:3'], 'public' => true],
                 'invoice_prefix' => ['type' => 'text', 'label' => 'Invoice prefix', 'default' => 'SS', 'rules' => ['required', 'alpha_num', 'max:6']],
                 'business_name' => ['type' => 'text', 'label' => 'Business name on invoices', 'default' => 'SiedeStudios', 'rules' => ['nullable', 'string', 'max:120']],
-                'business_address' => ['type' => 'textarea', 'label' => 'Business address', 'default' => null, 'rules' => ['nullable', 'string', 'max:300']],
+                'business_address' => ['type' => 'textarea', 'label' => 'Business address', 'default' => null, 'rules' => ['nullable', 'string', 'max:300'], 'public' => true, 'help' => 'Also shown on the privacy policy and terms — UK law requires a geographic address.'],
                 'invoice_footer' => ['type' => 'textarea', 'label' => 'Invoice footer note', 'default' => 'Thank you for your business.', 'rules' => ['nullable', 'string', 'max:300']],
             ],
         ],
@@ -83,6 +87,22 @@ return [
                 'gmodstore_team_id' => ['type' => 'text', 'label' => 'Team ID', 'default' => null, 'rules' => ['nullable', 'uuid'], 'help' => 'Optional. Every product your team sells is imported automatically.'],
                 'gmodstore_show_sales' => ['type' => 'toggle', 'label' => 'Show sales counts', 'default' => '1', 'rules' => ['boolean']],
                 'store_heading' => ['type' => 'text', 'label' => 'Store page heading', 'default' => 'Addons for your server', 'rules' => ['nullable', 'string', 'max:80'], 'public' => true],
+            ],
+        ],
+
+        'legal' => [
+            'label' => 'Legal & business',
+            'description' => 'Used on the privacy policy, terms and footer. UK law requires your business name, a geographic address and an email address to be easy to find.',
+            'fields' => [
+                'legal_name' => ['type' => 'text', 'label' => 'Legal name', 'default' => null, 'rules' => ['nullable', 'string', 'max:120'], 'public' => true, 'help' => 'Your full name if you\'re a sole trader, or the registered company name.'],
+                'legal_entity' => ['type' => 'select', 'label' => 'Business type', 'default' => 'Sole trader', 'options' => 'legal_entities', 'rules' => ['required', 'string', 'max:40'], 'public' => true],
+                'company_number' => ['type' => 'text', 'label' => 'Company number', 'default' => null, 'rules' => ['nullable', 'string', 'max:20'], 'public' => true, 'help' => 'Limited companies and LLPs only.'],
+                'vat_number' => ['type' => 'text', 'label' => 'VAT number', 'default' => null, 'rules' => ['nullable', 'string', 'max:20'], 'public' => true, 'help' => 'Only if you\'re VAT registered.'],
+                'ico_number' => ['type' => 'text', 'label' => 'ICO registration number', 'default' => null, 'rules' => ['nullable', 'string', 'max:20'], 'public' => true, 'help' => 'From paying the ICO data protection fee (ico.org.uk/fee) — most businesses handling client data need to.'],
+                'privacy_email' => ['type' => 'email', 'label' => 'Privacy contact email', 'default' => null, 'rules' => ['nullable', 'email', 'max:120'], 'public' => true, 'help' => 'Where people send data requests. Defaults to your contact email.'],
+                'hosting_provider' => ['type' => 'text', 'label' => 'Hosting provider', 'default' => 'Hetzner Online GmbH (Germany)', 'rules' => ['nullable', 'string', 'max:120'], 'public' => true],
+                'legal_jurisdiction' => ['type' => 'select', 'label' => 'Governing law', 'default' => 'England and Wales', 'options' => 'jurisdictions', 'rules' => ['required', 'string', 'max:40'], 'public' => true],
+                'legal_updated' => ['type' => 'text', 'label' => 'Policies last updated', 'default' => '16 November 2026', 'rules' => ['nullable', 'string', 'max:40'], 'public' => true, 'help' => 'Change this whenever you edit how you handle data.'],
             ],
         ],
 

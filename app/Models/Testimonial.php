@@ -13,7 +13,7 @@ use Illuminate\Support\Str;
 
 #[Fillable([
     'project_id', 'client_id', 'token', 'name', 'company', 'role', 'avatar', 'body', 'rating',
-    'status', 'is_featured', 'sort_order', 'submitted_at', 'approved_at',
+    'status', 'is_featured', 'sort_order', 'submitted_at', 'consented_at', 'approved_at',
 ])]
 class Testimonial extends Model
 {
@@ -32,6 +32,7 @@ class Testimonial extends Model
             'is_featured' => 'boolean',
             'sort_order' => 'integer',
             'submitted_at' => 'datetime',
+            'consented_at' => 'datetime',
             'approved_at' => 'datetime',
         ];
     }

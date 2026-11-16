@@ -42,8 +42,17 @@ class DashboardController extends Controller
 
         $open = Invoice::where('status', InvoiceStatus::Open)->where('currency', $currency);
 
+        // What the privacy policy / terms still need to meet UK disclosure rules.
+        $legalGaps = array_keys(array_filter([
+            'your legal name' => blank($settings->get('legal_name')),
+            'a business address' => blank($settings->get('business_address')),
+            'your ICO registration number' => blank($settings->get('ico_number')),
+            'your company number' => in_array($settings->get('legal_entity'), ['Limited company', 'LLP'], true) && blank($settings->get('company_number')),
+        ]));
+
         return Inertia::render('Admin/Dashboard', [
             'currency' => $currency,
+            'legal_gaps' => $legalGaps,
             'stats' => [
                 'revenue_year' => round((float) Invoice::where('status', InvoiceStatus::Paid)->where('currency', $currency)->whereYear('paid_at', now()->year)->sum('paid_amount'), 2),
                 'outstanding' => round((float) (clone $open)->sum('total'), 2),

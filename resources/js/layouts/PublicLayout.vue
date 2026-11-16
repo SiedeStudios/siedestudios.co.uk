@@ -5,6 +5,7 @@ import SiteFooter from '@/components/SiteFooter.vue';
 import PageTransition from '@/components/PageTransition.vue';
 import FlashToast from '@/components/FlashToast.vue';
 import EasterEggs from '@/components/eggs/EasterEggs.vue';
+import CookieConsent from '@/components/legal/CookieConsent.vue';
 import { startSmoothScroll, stopSmoothScroll } from '@/lib/motion';
 
 onMounted(() => startSmoothScroll());
@@ -22,5 +23,6 @@ onBeforeUnmount(() => stopSmoothScroll());
         <PageTransition />
         <FlashToast />
         <EasterEggs />
+        <CookieConsent />
     </div>
 </template>

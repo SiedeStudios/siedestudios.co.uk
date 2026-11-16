@@ -30,10 +30,7 @@
         @vite(['resources/js/app.js', "resources/js/pages/{$page['component']}.vue"])
         @inertiaHead
 
-        @if ($site['google_analytics_id'] && app()->isProduction())
-            <script async src="https://www.googletagmanager.com/gtag/js?id={{ $site['google_analytics_id'] }}"></script>
-            <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config',@json($site['google_analytics_id']));</script>
-        @endif
+        {{-- Google Analytics only loads after consent — see components/legal/CookieConsent.vue. --}}
     </head>
     <body>
         @inertia

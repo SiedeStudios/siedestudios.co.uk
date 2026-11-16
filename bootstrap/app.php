@@ -35,6 +35,9 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->trustProxies(at: '*');
 
+        // Set and read by the browser only (cookie banner choice).
+        $middleware->encryptCookies(except: ['cookie_consent']);
+
         $middleware->redirectGuestsTo(fn (Request $request) => route($request->is('portal', 'portal/*') ? 'portal.login' : 'login'));
         $middleware->redirectUsersTo(fn (Request $request) => route($request->user()?->is_admin ? 'admin.dashboard' : 'portal.dashboard'));
     })

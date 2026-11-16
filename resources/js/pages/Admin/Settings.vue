@@ -1,7 +1,7 @@
 <script setup>
 import { computed } from 'vue';
 import { Head, Link, useForm } from '@inertiajs/vue3';
-import { Save, Loader2, Settings2, Palette, Contact, CreditCard, Bell, ShieldCheck, Search, ShoppingBag, KeyRound, ArrowRight } from 'lucide-vue-next';
+import { Save, Loader2, Settings2, Palette, Contact, CreditCard, Bell, ShieldCheck, Search, ShoppingBag, KeyRound, ArrowRight, Scale } from 'lucide-vue-next';
 import PageHeader from '@/components/admin/PageHeader.vue';
 import Field from '@/components/admin/Field.vue';
 import Toggle from '@/components/admin/Toggle.vue';
@@ -10,7 +10,7 @@ import CopyField from '@/components/admin/CopyField.vue';
 
 const props = defineProps({ groups: Array, group: Object, fields: Array, context: Object });
 
-const icons = { general: Settings2, branding: Palette, contact: Contact, payments: CreditCard, gmodstore: ShoppingBag, notifications: Bell, access: ShieldCheck, seo: Search };
+const icons = { general: Settings2, branding: Palette, contact: Contact, payments: CreditCard, legal: Scale, gmodstore: ShoppingBag, notifications: Bell, access: ShieldCheck, seo: Search };
 
 const initial = {};
 props.fields.forEach((f) => {

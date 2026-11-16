@@ -97,10 +97,10 @@ class PublicSiteTest extends TestCase
 
         $this->get("/testimonial/{$testimonial->token}")->assertOk()->assertInertia(fn ($page) => $page->where('submitted', false)->missing('invite.token'));
 
-        $this->post("/testimonial/{$testimonial->token}", ['rating' => 5, 'body' => 'Brilliant work, delivered early and exactly as specified.'])->assertSessionHas('success');
+        $this->post("/testimonial/{$testimonial->token}", ['rating' => 5, 'body' => 'Brilliant work, delivered early and exactly as specified.', 'consent' => '1'])->assertSessionHas('success');
         $this->assertSame(TestimonialStatus::Pending, $testimonial->fresh()->status);
 
-        $this->post("/testimonial/{$testimonial->token}", ['rating' => 1, 'body' => 'Trying to overwrite the testimonial text.'])->assertSessionHas('error');
+        $this->post("/testimonial/{$testimonial->token}", ['rating' => 1, 'body' => 'Trying to overwrite the testimonial text.', 'consent' => '1'])->assertSessionHas('error');
         $this->assertSame(5, $testimonial->fresh()->rating);
         $this->get('/testimonial/not-a-real-token')->assertNotFound();
     }
