@@ -8,6 +8,7 @@ import BareLayout from '@/layouts/BareLayout.vue';
 import PortalLayout from '@/layouts/PortalLayout.vue';
 import { magnetic } from '@/lib/magnetic';
 import { spotlight } from '@/lib/spotlight';
+import { liquid } from '@/lib/liquid';
 
 const pages = import.meta.glob('./pages/**/*.vue');
 const BARE = ['Admin/Login', 'Portal/Login', 'Portal/Invite', 'Share/Show', 'Share/Locked', 'Testimonial/Submit'];
@@ -33,6 +34,7 @@ createInertiaApp({
             .use(plugin)
             .directive('magnetic', magnetic)
             .directive('spotlight', spotlight)
+            .directive('liquid', liquid)
             .mount(el);
     },
     progress: {
