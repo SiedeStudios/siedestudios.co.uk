@@ -12,7 +12,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Str;
 
 #[Fillable([
-    'project_id', 'token', 'name', 'company', 'role', 'avatar', 'body', 'rating',
+    'project_id', 'client_id', 'token', 'name', 'company', 'role', 'avatar', 'body', 'rating',
     'status', 'is_featured', 'sort_order', 'submitted_at', 'approved_at',
 ])]
 class Testimonial extends Model

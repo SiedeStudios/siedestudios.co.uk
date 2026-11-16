@@ -15,6 +15,8 @@ class InvoiceRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'client_id' => ['nullable', 'integer', 'exists:clients,id'],
+            'client_project_id' => ['nullable', 'integer', Rule::exists('client_projects', 'id')->where('client_id', $this->integer('client_id'))],
             'client_name' => ['required', 'string', 'max:120'],
             'client_email' => ['nullable', 'email', 'max:150'],
             'client_company' => ['nullable', 'string', 'max:120'],

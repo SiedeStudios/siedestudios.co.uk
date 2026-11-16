@@ -6,15 +6,17 @@ import PageHeader from '@/components/admin/PageHeader.vue';
 import Field from '@/components/admin/Field.vue';
 import { money } from '@/lib/format';
 
-const props = defineProps({ invoice: Object, currencies: Array, defaults: Object });
+const props = defineProps({ invoice: Object, currencies: Array, defaults: Object, clients: { type: Array, default: () => [] } });
 const editing = computed(() => !!props.invoice);
 const today = new Date().toISOString().slice(0, 10);
 const inTwoWeeks = new Date(Date.now() + 14 * 864e5).toISOString().slice(0, 10);
 
 const form = useForm({
-    client_name: props.invoice?.client_name ?? '',
-    client_email: props.invoice?.client_email ?? '',
-    client_company: props.invoice?.client_company ?? '',
+    client_id: props.invoice?.client_id ?? props.defaults?.client_id ?? null,
+    client_project_id: props.invoice?.client_project_id ?? props.defaults?.client_project_id ?? null,
+    client_name: props.invoice?.client_name ?? props.defaults?.client_name ?? '',
+    client_email: props.invoice?.client_email ?? props.defaults?.client_email ?? '',
+    client_company: props.invoice?.client_company ?? props.defaults?.client_company ?? '',
     currency: props.invoice?.currency ?? props.defaults?.currency ?? 'GBP',
     issued_at: props.invoice?.issued_at ?? today,
     due_at: props.invoice?.due_at ?? inTwoWeeks,
@@ -22,6 +24,13 @@ const form = useForm({
     items: props.invoice?.items?.length ? props.invoice.items.map((i) => ({ ...i })) : [{ description: '', quantity: 1, unit_price: '' }],
     publish: false,
 });
+
+const linkedClient = computed(() => props.clients.find((c) => c.id === form.client_id));
+const pickClient = () => {
+    form.client_project_id = null;
+    const c = linkedClient.value;
+    if (c) Object.assign(form, { client_name: c.name, client_company: c.company ?? '', client_email: c.email ?? '' });
+};
 
 const lineTotal = (i) => Math.round(Number(i.quantity || 0) * Number(i.unit_price || 0) * 100) / 100;
 const total = computed(() => form.items.reduce((sum, i) => sum + lineTotal(i), 0));
@@ -44,6 +53,12 @@ const itemError = (i, key) => form.errors[`items.${i}.${key}`];
             <section class="card-solid p-6">
                 <h2 class="title text-lg">Client</h2>
                 <div class="mt-5 grid gap-5 sm:grid-cols-2">
+                    <Field v-if="clients.length" label="Client account" for="client_id" optional help="Shows the invoice in their client portal." :error="form.errors.client_id">
+                        <select id="client_id" v-model="form.client_id" class="field" @change="pickClient"><option :value="null">Not linked</option><option v-for="c in clients" :key="c.id" :value="c.id">{{ c.company ? `${c.company} — ${c.name}` : c.name }}</option></select>
+                    </Field>
+                    <Field v-if="linkedClient?.projects.length" label="Project" for="client_project_id" optional :error="form.errors.client_project_id">
+                        <select id="client_project_id" v-model="form.client_project_id" class="field"><option :value="null">General</option><option v-for="p in linkedClient.projects" :key="p.id" :value="p.id">{{ p.title }}</option></select>
+                    </Field>
                     <Field label="Name" for="client_name" :error="form.errors.client_name"><input id="client_name" v-model="form.client_name" class="field" required /></Field>
                     <Field label="Company" for="client_company" :error="form.errors.client_company" optional><input id="client_company" v-model="form.client_company" class="field" /></Field>
                     <Field label="Email" for="client_email" :error="form.errors.client_email" optional class="sm:col-span-2"><input id="client_email" v-model="form.client_email" type="email" class="field" /></Field>

@@ -6,11 +6,12 @@ import { ZiggyVue } from 'ziggy-js';
 import PublicLayout from '@/layouts/PublicLayout.vue';
 import AdminLayout from '@/layouts/AdminLayout.vue';
 import BareLayout from '@/layouts/BareLayout.vue';
+import PortalLayout from '@/layouts/PortalLayout.vue';
 import { magnetic } from '@/lib/magnetic';
 import { spotlight } from '@/lib/spotlight';
 
 const pages = import.meta.glob('./pages/**/*.vue');
-const BARE = ['Admin/Login', 'Share/Show', 'Share/Locked', 'Testimonial/Submit'];
+const BARE = ['Admin/Login', 'Portal/Login', 'Portal/Invite', 'Share/Show', 'Share/Locked', 'Testimonial/Submit'];
 
 createInertiaApp({
     title: (title, page) => {
@@ -25,6 +26,7 @@ createInertiaApp({
     layout: (name) => {
         if (BARE.includes(name)) return BareLayout;
         if (name.startsWith('Admin/')) return AdminLayout;
+        if (name.startsWith('Portal/')) return PortalLayout;
         return PublicLayout;
     },
     setup({ el, App, props, plugin }) {

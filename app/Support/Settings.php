@@ -3,8 +3,10 @@
 namespace App\Support;
 
 use App\Models\Setting;
+use Illuminate\Contracts\Encryption\DecryptException;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Schema;
 use Throwable;
 
@@ -48,6 +50,22 @@ class Settings
     public function get(string $key, mixed $default = null): mixed
     {
         return $this->all()[$key] ?? $default;
+    }
+
+    /** A write-only setting, stored encrypted (type "secret" in config/site.php). */
+    public function secret(string $key): ?string
+    {
+        $value = $this->get($key);
+
+        if (blank($value)) {
+            return null;
+        }
+
+        try {
+            return Crypt::decryptString($value);
+        } catch (DecryptException) {
+            return null;
+        }
     }
 
     public function bool(string $key): bool

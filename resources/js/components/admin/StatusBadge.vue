@@ -16,6 +16,17 @@ const map = {
     VERIFIED: ['Verified', 'bg-emerald-400/12 text-emerald-300'],
     INVALID: ['Invalid', 'bg-accent/15 text-accent-hot'],
     ERROR: ['Error', 'bg-accent/15 text-accent-hot'],
+    overdue: ['Overdue', 'bg-accent/15 text-accent-hot'],
+    planning: ['Planning', 'bg-sky-400/12 text-sky-300'],
+    in_progress: ['In progress', 'bg-amber-400/12 text-amber-300'],
+    review: ['In review', 'bg-violet-400/12 text-violet-300'],
+    on_hold: ['On hold', 'bg-white/[0.07] text-muted'],
+    completed: ['Completed', 'bg-emerald-400/12 text-emerald-300'],
+    up: ['Operational', 'bg-emerald-400/12 text-emerald-300'],
+    down: ['Down', 'bg-accent/15 text-accent-hot'],
+    degraded: ['Degraded', 'bg-amber-400/12 text-amber-300'],
+    paused: ['Paused', 'bg-white/[0.07] text-muted'],
+    unknown: ['Waiting', 'bg-white/[0.07] text-muted'],
 };
 const meta = computed(() => map[props.status] ?? [props.status, 'bg-white/[0.07] text-text-2']);
 </script>

@@ -4,6 +4,8 @@ namespace App\Http\Middleware;
 
 use App\Enums\TestimonialStatus;
 use App\Models\Message;
+use App\Models\Monitor;
+use App\Models\StoreProduct;
 use App\Models\Testimonial;
 use App\Support\Settings;
 use Illuminate\Http\Request;
@@ -22,6 +24,10 @@ class HandleInertiaRequests extends Middleware
         return [
             ...parent::share($request),
             'site' => fn () => $this->settings->public(),
+            'nav' => fn () => [
+                'store' => StoreProduct::showcase()->exists(),
+                'status' => Monitor::where('is_public', true)->exists(),
+            ],
             'auth' => [
                 'user' => $user ? [
                     'id' => $user->id,
@@ -29,6 +35,7 @@ class HandleInertiaRequests extends Middleware
                     'username' => $user->discord_username,
                     'avatar' => $user->avatar,
                     'is_admin' => $user->is_admin,
+                    'client' => $user->client_id ? $user->client?->displayName() : null,
                 ] : null,
             ],
             'flash' => [
@@ -38,6 +45,7 @@ class HandleInertiaRequests extends Middleware
             'admin' => fn () => $user?->is_admin && $request->routeIs('admin.*') ? [
                 'unread_messages' => Message::unread()->count(),
                 'pending_testimonials' => Testimonial::where('status', TestimonialStatus::Pending)->count(),
+                'monitors_down' => Monitor::where('status', Monitor::DOWN)->active()->count(),
             ] : null,
         ];
     }

@@ -3,7 +3,7 @@ import { computed, ref } from 'vue';
 import { Link, router, usePage } from '@inertiajs/vue3';
 import {
     LayoutDashboard, FolderKanban, Tags, Layers, MessageSquareQuote, Receipt, CreditCard,
-    FileCode2, Inbox, Settings, LogOut, ExternalLink, Menu, X,
+    FileCode2, Inbox, Settings, LogOut, ExternalLink, Menu, X, Users, ShoppingBag, Activity,
 } from 'lucide-vue-next';
 import Logo from '@/components/Logo.vue';
 import FlashToast from '@/components/FlashToast.vue';
@@ -22,11 +22,13 @@ const groups = computed(() => [
             { label: 'Categories', href: '/admin/categories', icon: Tags },
             { label: 'Services', href: '/admin/services', icon: Layers },
             { label: 'Testimonials', href: '/admin/testimonials', icon: MessageSquareQuote, badge: counts.value.pending_testimonials },
+            { label: 'Store', href: '/admin/store', icon: ShoppingBag },
         ],
     },
     {
         label: 'Business',
         items: [
+            { label: 'Clients', href: '/admin/clients', icon: Users, match: ['/admin/client-projects'] },
             { label: 'Invoices', href: '/admin/invoices', icon: Receipt },
             { label: 'Payments', href: '/admin/payments', icon: CreditCard },
             { label: 'Messages', href: '/admin/messages', icon: Inbox, badge: counts.value.unread_messages },
@@ -35,6 +37,7 @@ const groups = computed(() => [
     {
         label: 'Tools',
         items: [
+            { label: 'Status page', href: '/admin/monitors', icon: Activity, badge: counts.value.monitors_down },
             { label: 'Shares', href: '/admin/shares', icon: FileCode2 },
             { label: 'Settings', href: '/admin/settings', icon: Settings },
         ],
@@ -42,7 +45,7 @@ const groups = computed(() => [
 ]);
 
 const path = computed(() => page.url.split('?')[0]);
-const active = (item) => (item.exact ? path.value === item.href : path.value.startsWith(item.href));
+const active = (item) => (item.exact ? path.value === item.href : [item.href, ...(item.match ?? [])].some((h) => path.value.startsWith(h)));
 
 router.on('navigate', () => (open.value = false));
 </script>

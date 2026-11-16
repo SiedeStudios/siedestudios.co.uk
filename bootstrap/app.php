@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\EnsureUserIsAdmin;
+use App\Http\Middleware\EnsureUserIsClient;
 use App\Http\Middleware\HandleInertiaRequests;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -18,6 +19,7 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
         then: function () {
             Route::middleware('web')->group(base_path('routes/admin.php'));
+            Route::middleware('web')->group(base_path('routes/portal.php'));
         },
     )
     ->withMiddleware(function (Middleware $middleware): void {
@@ -26,15 +28,15 @@ return Application::configure(basePath: dirname(__DIR__))
             AddLinkHeadersForPreloadedAssets::class,
         ]);
 
-        $middleware->alias(['admin' => EnsureUserIsAdmin::class]);
+        $middleware->alias(['admin' => EnsureUserIsAdmin::class, 'client' => EnsureUserIsClient::class]);
 
         // PayPal posts IPN messages server-to-server, so they can never carry a CSRF token.
         $middleware->preventRequestForgery(except: ['paypal/ipn']);
 
         $middleware->trustProxies(at: '*');
 
-        $middleware->redirectGuestsTo(fn () => route('login'));
-        $middleware->redirectUsersTo(fn () => route('admin.dashboard'));
+        $middleware->redirectGuestsTo(fn (Request $request) => route($request->is('portal', 'portal/*') ? 'portal.login' : 'login'));
+        $middleware->redirectUsersTo(fn (Request $request) => route($request->user()?->is_admin ? 'admin.dashboard' : 'portal.dashboard'));
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->respond(function (Response $response, Throwable $e, Request $request) {

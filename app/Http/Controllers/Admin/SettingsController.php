@@ -7,6 +7,7 @@ use App\Support\Media;
 use App\Support\Settings;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Crypt;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -30,10 +31,11 @@ class SettingsController extends Controller
                 'options' => isset($field['options']) ? config('site.'.$field['options']) : null,
                 'value' => match ($field['type']) {
                     'toggle' => filter_var($value, FILTER_VALIDATE_BOOLEAN),
-                    'image' => null,
+                    'image', 'secret' => null,
                     default => $value,
                 },
                 'preview' => $field['type'] === 'image' ? Media::url($value) : null,
+                'is_set' => $field['type'] === 'secret' ? filled($value) : null,
             ];
         })->values();
 
@@ -41,10 +43,12 @@ class SettingsController extends Controller
             'groups' => collect($groups)->map(fn ($g, $key) => ['key' => $key, 'label' => $g['label']])->values(),
             'group' => ['key' => $group, 'label' => $groups[$group]['label'], 'description' => $groups[$group]['description'] ?? null],
             'fields' => $fields,
-            'context' => $group === 'payments' ? ['ipn_url' => route('paypal.ipn')] : ($group === 'access' ? [
-                'env_ids' => config('site.admin_discord_ids'),
-                'me' => auth()->user()->discord_id,
-            ] : null),
+            'context' => match ($group) {
+                'payments' => ['ipn_url' => route('paypal.ipn')],
+                'access' => ['env_ids' => config('site.admin_discord_ids'), 'me' => auth()->user()->discord_id],
+                'gmodstore' => ['store_admin' => route('admin.store.index')],
+                default => null,
+            },
         ]);
     }
 
@@ -59,6 +63,9 @@ class SettingsController extends Controller
         foreach ($fields as $key => $field) {
             if ($field['type'] === 'image') {
                 $rules["remove_{$key}"] = ['boolean'];
+            }
+            if ($field['type'] === 'secret') {
+                $rules["clear_{$key}"] = ['boolean'];
             }
             if (($field['options'] ?? null) === 'currencies') {
                 $rules[$key][] = 'in:'.implode(',', config('site.currencies'));
@@ -77,6 +84,17 @@ class SettingsController extends Controller
                 }
                 if ($request->hasFile($key)) {
                     $save[$key] = $request->file($key)->store('branding', 'public');
+                }
+
+                continue;
+            }
+
+            // Secrets are write-only: blank keeps the stored value, "clear_<key>" removes it.
+            if ($field['type'] === 'secret') {
+                if ($request->boolean("clear_{$key}")) {
+                    $save[$key] = null;
+                } elseif (filled($data[$key] ?? null)) {
+                    $save[$key] = Crypt::encryptString($data[$key]);
                 }
 
                 continue;

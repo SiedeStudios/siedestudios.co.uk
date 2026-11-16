@@ -75,6 +75,17 @@ return [
             ],
         ],
 
+        'gmodstore' => [
+            'label' => 'GmodStore',
+            'description' => 'Show your GmodStore products with live prices, ratings and sales. Products refresh every hour.',
+            'fields' => [
+                'gmodstore_api_key' => ['type' => 'secret', 'label' => 'API key', 'default' => null, 'rules' => ['nullable', 'string', 'max:500'], 'help' => 'GmodStore → Settings → API keys. Scopes: products:read, product-reviews:read, and product-purchases:read for sales counts.'],
+                'gmodstore_team_id' => ['type' => 'text', 'label' => 'Team ID', 'default' => null, 'rules' => ['nullable', 'uuid'], 'help' => 'Optional. Every product your team sells is imported automatically.'],
+                'gmodstore_show_sales' => ['type' => 'toggle', 'label' => 'Show sales counts', 'default' => '1', 'rules' => ['boolean']],
+                'store_heading' => ['type' => 'text', 'label' => 'Store page heading', 'default' => 'Addons for your server', 'rules' => ['nullable', 'string', 'max:80'], 'public' => true],
+            ],
+        ],
+
         'notifications' => [
             'label' => 'Notifications',
             'description' => 'Post alerts to a Discord channel via webhook.',
@@ -83,6 +94,8 @@ return [
                 'notify_messages' => ['type' => 'toggle', 'label' => 'New contact messages', 'default' => '1', 'rules' => ['boolean']],
                 'notify_payments' => ['type' => 'toggle', 'label' => 'Invoice payments', 'default' => '1', 'rules' => ['boolean']],
                 'notify_testimonials' => ['type' => 'toggle', 'label' => 'Testimonial submissions', 'default' => '1', 'rules' => ['boolean']],
+                'notify_monitors' => ['type' => 'toggle', 'label' => 'Status page: sites going down or recovering', 'default' => '1', 'rules' => ['boolean']],
+                'notify_portal' => ['type' => 'toggle', 'label' => 'Client portal: uploads and sign-ups', 'default' => '1', 'rules' => ['boolean']],
             ],
         ],
 

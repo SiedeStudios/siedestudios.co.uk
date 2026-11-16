@@ -15,14 +15,15 @@ const overlay = ref(null);
 const pill = ref(null);
 const indicator = ref(null);
 
-const nav = [
+const nav = computed(() => [
     { label: 'Home', href: '/', match: (u) => u === '/' },
     { label: 'Work', href: '/projects', match: (u) => u.startsWith('/projects') },
     { label: 'Services', href: '/services', match: (u) => u.startsWith('/services') },
+    page.props.nav?.store && { label: 'Store', href: '/store', match: (u) => u.startsWith('/store') },
     { label: 'Contact', href: '/contact', match: (u) => u.startsWith('/contact') },
-];
+].filter(Boolean));
 const path = computed(() => page.url.split('?')[0]);
-const activeIndex = computed(() => nav.findIndex((n) => n.match(path.value)));
+const activeIndex = computed(() => nav.value.findIndex((n) => n.match(path.value)));
 
 /* Sliding pill indicator that follows hover and settles on the active page. */
 const moveIndicator = (index, instant = false) => {
@@ -148,7 +149,8 @@ router.on('navigate', () => {
                             <span class="display text-[2.75rem]" :class="activeIndex === i ? 'text-gradient' : ''">{{ item.label }}</span>
                             <span class="mono">0{{ i + 1 }}</span>
                         </Link>
-                        <Link href="/pay" data-menu-item class="flex items-baseline justify-between py-4 text-text-2">Pay an invoice <ArrowUpRight :size="16" /></Link>
+                        <Link href="/pay" data-menu-item class="flex items-baseline justify-between border-b border-line py-4 text-text-2">Pay an invoice <ArrowUpRight :size="16" /></Link>
+                        <Link href="/portal" data-menu-item class="flex items-baseline justify-between py-4 text-text-2">Client portal <ArrowUpRight :size="16" /></Link>
                     </nav>
                     <div class="space-y-5">
                         <a v-if="site.contact_email" data-menu-fade :href="`mailto:${site.contact_email}`" class="block text-lg">{{ site.contact_email }}</a>

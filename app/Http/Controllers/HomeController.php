@@ -6,7 +6,9 @@ use App\Http\Resources\ProjectCardResource;
 use App\Http\Resources\ServiceResource;
 use App\Models\Project;
 use App\Models\Service;
+use App\Models\StoreProduct;
 use App\Models\Testimonial;
+use App\Support\Settings;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -32,6 +34,7 @@ class HomeController extends Controller
             'projects' => ProjectCardResource::collection($featured)->resolve(),
             'services' => ServiceResource::collection(Service::active()->ordered()->get())->resolve(),
             'testimonials' => $testimonials->map->toPublicArray(),
+            'store' => StoreProduct::showcase()->limit(3)->get()->map->toPublicArray(app(Settings::class)->bool('gmodstore_show_sales')),
             'stats' => [
                 'projects' => Project::published()->count(),
                 'rating' => round((float) Testimonial::approved()->avg('rating'), 1),

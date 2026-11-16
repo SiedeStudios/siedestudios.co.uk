@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Enums\InvoiceStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\InvoiceRequest;
+use App\Models\Client;
 use App\Models\Invoice;
 use App\Support\Settings;
 use Illuminate\Http\RedirectResponse;
@@ -43,13 +44,30 @@ class InvoiceController extends Controller
         ]);
     }
 
-    public function create(Settings $settings): Response
+    public function create(Request $request, Settings $settings): Response
     {
+        $client = Client::find($request->integer('client'));
+
         return Inertia::render('Admin/Invoices/Form', [
             'invoice' => null,
             'currencies' => config('site.currencies'),
-            'defaults' => ['currency' => $settings->get('currency', 'GBP')],
+            'clients' => $this->clientOptions(),
+            'defaults' => [
+                'currency' => $settings->get('currency', 'GBP'),
+                'client_id' => $client?->id,
+                'client_project_id' => $client?->projects()->whereKey($request->integer('project'))->value('id'),
+                'client_name' => $client?->name,
+                'client_company' => $client?->company,
+                'client_email' => $client?->email,
+            ],
         ]);
+    }
+
+    private function clientOptions(): array
+    {
+        return Client::with('projects:id,client_id,title')->orderBy('name')->get(['id', 'name', 'company', 'email'])
+            ->map(fn (Client $c) => [...$c->only(['id', 'name', 'company', 'email']), 'projects' => $c->projects->map->only(['id', 'title'])])
+            ->all();
     }
 
     public function store(InvoiceRequest $request, Settings $settings): RedirectResponse
@@ -99,7 +117,7 @@ class InvoiceController extends Controller
 
         return Inertia::render('Admin/Invoices/Form', [
             'invoice' => [
-                ...$invoice->only(['id', 'reference', 'client_name', 'client_email', 'client_company', 'currency', 'notes']),
+                ...$invoice->only(['id', 'reference', 'client_id', 'client_project_id', 'client_name', 'client_email', 'client_company', 'currency', 'notes']),
                 'status' => $invoice->status->value,
                 'issued_at' => $invoice->issued_at?->toDateString(),
                 'due_at' => $invoice->due_at?->toDateString(),
@@ -110,6 +128,7 @@ class InvoiceController extends Controller
                 ]),
             ],
             'currencies' => config('site.currencies'),
+            'clients' => $this->clientOptions(),
             'defaults' => [],
         ]);
     }

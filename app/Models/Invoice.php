@@ -6,11 +6,12 @@ use App\Enums\InvoiceStatus;
 use App\Support\Money;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Str;
 
 #[Fillable([
-    'reference', 'client_name', 'client_email', 'client_company', 'currency', 'total', 'status',
+    'reference', 'client_id', 'client_project_id', 'client_name', 'client_email', 'client_company', 'currency', 'total', 'status',
     'notes', 'issued_at', 'due_at', 'paid_at', 'paypal_txn_id', 'paid_amount', 'payer_email',
 ])]
 class Invoice extends Model
@@ -30,6 +31,16 @@ class Invoice extends Model
     public function getRouteKeyName(): string
     {
         return 'reference';
+    }
+
+    public function client(): BelongsTo
+    {
+        return $this->belongsTo(Client::class);
+    }
+
+    public function clientProject(): BelongsTo
+    {
+        return $this->belongsTo(ClientProject::class);
     }
 
     public function items(): HasMany

@@ -7,11 +7,13 @@ import ServiceIcon from '@/components/ServiceIcon.vue';
 import StarRating from '@/components/StarRating.vue';
 import LogoMark from '@/components/LogoMark.vue';
 import Aurora from '@/components/Aurora.vue';
+import ProductCard from '@/components/ProductCard.vue';
 import { useMotion } from '@/composables/useMotion';
 import { gsap, SplitText, blurWords, prefersReducedMotion } from '@/lib/motion';
 import { pad } from '@/lib/format';
 
 const props = defineProps({
+    store: { type: Array, default: () => [] },
     projects: Array,
     services: Array,
     testimonials: Array,
@@ -261,6 +263,17 @@ useMotion(root, (el) => {
                         </div>
                     </Link>
                 </article>
+            </div>
+        </section>
+
+        <!-- ============================== STORE ============================== -->
+        <section v-if="store.length" class="wrap pt-28 lg:pt-40">
+            <div class="flex flex-wrap items-end justify-between gap-8">
+                <SectionHead label="On GmodStore">Ready-made <span class="text-gradient">addons</span></SectionHead>
+                <Link href="/store" class="btn btn-glass" data-reveal>Browse the store <ArrowRight :size="16" /></Link>
+            </div>
+            <div class="mt-14 grid gap-5 md:grid-cols-3">
+                <ProductCard v-for="p in store" :key="p.id" :product="p" data-reveal />
             </div>
         </section>
 

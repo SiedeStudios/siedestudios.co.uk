@@ -88,7 +88,10 @@ onBeforeUnmount(() => {
                         <li><Link href="/projects" class="link">Work</Link></li>
                         <li><Link href="/services" class="link">Services</Link></li>
                         <li><Link href="/contact" class="link">Contact</Link></li>
+                        <li v-if="$page.props.nav?.store"><Link href="/store" class="link">Store</Link></li>
                         <li><Link href="/pay" class="link">Pay an invoice</Link></li>
+                        <li><Link href="/portal" class="link">Client portal</Link></li>
+                        <li v-if="$page.props.nav?.status"><Link href="/status" class="link">Status</Link></li>
                     </ul>
                 </div>
                 <div class="lg:col-span-2">

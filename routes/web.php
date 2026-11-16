@@ -9,6 +9,8 @@ use App\Http\Controllers\PayPalIpnController;
 use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\ServiceController;
 use App\Http\Controllers\ShareController;
+use App\Http\Controllers\StatusController;
+use App\Http\Controllers\StoreController;
 use App\Http\Controllers\TestimonialSubmissionController;
 use Illuminate\Support\Facades\Route;
 
@@ -18,6 +20,9 @@ Route::get('/projects', [ProjectController::class, 'index'])->name('projects.ind
 Route::get('/projects/{project:slug}', [ProjectController::class, 'show'])->name('projects.show');
 
 Route::get('/services', ServiceController::class)->name('services');
+
+Route::get('/store', StoreController::class)->name('store');
+Route::get('/status', StatusController::class)->name('status');
 
 Route::get('/contact', [ContactController::class, 'show'])->name('contact');
 Route::post('/contact', [ContactController::class, 'store'])->middleware('throttle:contact')->name('contact.store');
