@@ -35,6 +35,7 @@ return [
                 'is_available' => ['type' => 'toggle', 'label' => 'Taking new work', 'default' => '1', 'rules' => ['boolean'], 'public' => true],
                 'availability' => ['type' => 'text', 'label' => 'Availability text', 'default' => 'Booking projects for Q1 2027', 'rules' => ['nullable', 'string', 'max:80'], 'public' => true],
                 'location' => ['type' => 'text', 'label' => 'Location', 'default' => 'United Kingdom', 'rules' => ['nullable', 'string', 'max:80'], 'public' => true],
+                'seasonal_effects' => ['type' => 'toggle', 'label' => 'Seasonal effects', 'default' => '1', 'rules' => ['boolean'], 'public' => true, 'help' => 'Snow in December, embers at Halloween, fireworks for Bonfire Night and New Year.'],
                 'founded_year' => ['type' => 'text', 'label' => 'Founded', 'default' => '2020', 'rules' => ['nullable', 'string', 'max:10'], 'public' => true],
             ],
         ],

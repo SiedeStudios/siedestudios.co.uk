@@ -49,6 +49,7 @@ class ProjectController extends Controller
                 ...ProjectCardResource::make($project)->resolve(),
                 'body' => $project->body_html,
                 'story' => CaseStudy::build($project),
+                'accent' => $project->accent_color,
                 'role' => $project->role,
                 'links' => array_filter([
                     'site' => $project->site_url,

@@ -6,6 +6,17 @@
 @source '../views';
 @source '../js';
 
+/* Registered so the accent can animate (case studies tint the site in the
+   project's brand colour). Everything else derives from it. */
+@property --accent {
+    syntax: '<color>';
+    inherits: true;
+    initial-value: #dc143c;
+}
+html {
+    transition: --accent 0.9s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
 /* ------------------------------------------------------------------
    Tokens — graphite surfaces lit by a single fluid crimson.
    --accent is editable in Admin → Settings → Branding.

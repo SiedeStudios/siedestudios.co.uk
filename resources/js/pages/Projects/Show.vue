@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { Head, Link } from '@inertiajs/vue3';
 import { ArrowLeft, ArrowUpRight, Globe, Github, Play, ShoppingBag, Maximize2 } from 'lucide-vue-next';
 import BrandIcon from '@/components/BrandIcon.vue';
@@ -14,6 +14,17 @@ import { blurWords, gsap, prefersReducedMotion } from '@/lib/motion';
 const props = defineProps({ project: Object, testimonials: Array, next: Object });
 
 const root = ref(null);
+
+// Tint the whole site in the project's brand colour while it's open.
+const TINT = { '--accent-hot': 'color-mix(in oklab, var(--accent) 66%, white)', '--accent-deep': 'color-mix(in oklab, var(--accent) 58%, #08080b)' };
+const untint = () => ['--accent', ...Object.keys(TINT)].forEach((p) => document.documentElement.style.removeProperty(p));
+onMounted(() => {
+    if (!props.project.accent) return;
+    const html = document.documentElement.style;
+    Object.entries(TINT).forEach(([k, v]) => html.setProperty(k, v));
+    requestAnimationFrame(() => html.setProperty('--accent', props.project.accent));
+});
+onBeforeUnmount(untint);
 const lightbox = ref(null);
 
 const linkMeta = {

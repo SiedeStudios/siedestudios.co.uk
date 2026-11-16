@@ -32,6 +32,8 @@ class ProjectRequest extends FormRequest
             'project_category_id' => ['nullable', 'exists:project_categories,id'],
             'summary' => ['required', 'string', 'max:500'],
             'body' => ['nullable', 'string', 'max:20000'],
+            'accent_mode' => ['nullable', 'in:auto,custom,none'],
+            'accent_color' => ['nullable', 'required_if:accent_mode,custom', 'regex:/^#[0-9A-Fa-f]{6}$/'],
             'results' => ['nullable', 'array', 'max:4'],
             'results.*.value' => ['nullable', 'string', 'max:16'],
             'results.*.label' => ['nullable', 'required_with:results.*.value', 'string', 'max:60'],

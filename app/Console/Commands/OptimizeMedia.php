@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Models\Project;
 use App\Models\ProjectImage;
+use App\Support\BrandColor;
 use App\Support\ImageOptimizer;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
@@ -25,7 +26,19 @@ class OptimizeMedia extends Command
             $converted += $this->convert($project, 'cover_image');
         }
 
+        // Projects on "auto" brand colour that haven't been detected yet.
+        $coloured = 0;
+        foreach (Project::where('accent_auto', true)->whereNull('accent_color')->whereNotNull('cover_image')->get() as $project) {
+            if ($colour = BrandColor::fromImage($project->cover_image)) {
+                $project->forceFill(['accent_color' => $colour])->save();
+                $coloured++;
+            }
+        }
+
         $this->components->info($converted ? "Optimised {$converted} image(s)." : 'Everything is already optimised.');
+        if ($coloured) {
+            $this->components->info("Detected brand colours for {$coloured} project(s).");
+        }
 
         return self::SUCCESS;
     }

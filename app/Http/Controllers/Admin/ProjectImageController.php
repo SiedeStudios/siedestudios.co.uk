@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Project;
 use App\Models\ProjectImage;
+use App\Support\BrandColor;
 use App\Support\ImageOptimizer;
 use App\Support\Media;
 use Illuminate\Http\RedirectResponse;
@@ -31,6 +32,9 @@ class ProjectImageController extends Controller
 
         if (! $project->cover_image && $first = $project->images()->first()) {
             $project->update(['cover_image' => $first->path]);
+            if ($project->accent_auto) {
+                $project->update(['accent_color' => BrandColor::fromImage($first->path)]);
+            }
         }
 
         return back()->with('success', count($request->file('images')).' screenshot(s) uploaded.');

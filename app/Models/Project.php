@@ -15,7 +15,7 @@ use Illuminate\Support\Str;
 
 #[Fillable([
     'project_category_id', 'title', 'slug', 'summary', 'body', 'results', 'chapter_images', 'client', 'role', 'year', 'tags',
-    'cover_image', 'site_url', 'discord_url', 'github_url', 'store_url', 'video_url',
+    'cover_image', 'accent_color', 'accent_auto', 'site_url', 'discord_url', 'github_url', 'store_url', 'video_url',
     'is_featured', 'status', 'sort_order', 'published_at',
 ])]
 class Project extends Model
@@ -24,6 +24,7 @@ class Project extends Model
     {
         return [
             'tags' => 'array',
+            'accent_auto' => 'boolean',
             'results' => 'array',
             'chapter_images' => 'array',
             'is_featured' => 'boolean',

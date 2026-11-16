@@ -28,6 +28,7 @@ const commands = {
             ['whoami', 'who you are, as far as this server is concerned'],
             ['theme <colour>', 'crimson, emerald, azure, amber, violet'],
             ['noclip', 'toggle gravity'],
+            ['season <name>', 'snow, embers, fireworks or off'],
             ['hire', 'the important one'],
             ['credits', 'what this site is built with'],
             ['clear', 'clear the console'],
@@ -73,6 +74,12 @@ const commands = {
         setTimeout(() => router.reload(), 400);
     },
     textures: () => emit('textures'),
+    season: (arg) => {
+        const modes = ['snow', 'embers', 'fireworks', 'off'];
+        if (!modes.includes((arg ?? '').toLowerCase())) return out(`Usage: season <${modes.join('|')}>`, 'warn');
+        window.dispatchEvent(new CustomEvent('season-preview', { detail: arg.toLowerCase() }));
+        out(arg.toLowerCase() === 'off' ? 'Seasonal effects off for this visit.' : `Previewing ${arg.toLowerCase()}.${arg.toLowerCase() === 'fireworks' ? ' Click anywhere to launch one.' : ''}`, 'ok');
+    },
     hire: () => {
         out(page.props.site?.is_available ? 'Good choice. Opening the contact form…' : 'Fully booked right now — but get in touch anyway.', 'ok');
         setTimeout(() => {

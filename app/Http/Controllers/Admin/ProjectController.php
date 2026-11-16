@@ -7,6 +7,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\ProjectRequest;
 use App\Models\Project;
 use App\Models\ProjectCategory;
+use App\Support\BrandColor;
 use App\Support\ImageOptimizer;
 use App\Support\Media;
 use App\Support\UniqueSlug;
@@ -97,6 +98,8 @@ class ProjectController extends Controller
                 'status' => $project->status->value,
                 'cover' => $project->cover_url,
                 'images' => $project->images->map(fn ($i) => ['id' => $i->id, 'url' => $i->url, 'caption' => $i->caption]),
+                'accent_mode' => $project->accent_auto ? 'auto' : ($project->accent_color ? 'custom' : 'none'),
+                'detected_accent' => BrandColor::fromImage($project->cover_image),
             ] : null,
             'categories' => ProjectCategory::ordered()->get(['id', 'name']),
         ]);
@@ -104,7 +107,7 @@ class ProjectController extends Controller
 
     private function fill(Project $project, ProjectRequest $request): void
     {
-        $data = $request->safe()->except(['cover', 'remove_cover', 'slug']);
+        $data = $request->safe()->except(['cover', 'remove_cover', 'slug', 'accent_mode', 'accent_color']);
         $project->fill($data);
         $project->results = collect($data['results'] ?? [])->filter(fn ($r) => filled($r['value'] ?? null))->values()->all() ?: null;
         // Only keep chapter images that belong to this project.
@@ -126,5 +129,12 @@ class ProjectController extends Controller
         if ($request->hasFile('cover')) {
             $project->cover_image = ImageOptimizer::optimize($request->file('cover')->store('projects', 'public'));
         }
+
+        // Brand colour for the case study page: detected from the cover, picked by hand, or off.
+        match ($request->input('accent_mode', $project->accent_auto === false ? ($project->accent_color ? 'custom' : 'none') : 'auto')) {
+            'custom' => $project->forceFill(['accent_auto' => false, 'accent_color' => BrandColor::normalize($request->input('accent_color'))]),
+            'none' => $project->forceFill(['accent_auto' => false, 'accent_color' => null]),
+            default => $project->forceFill(['accent_auto' => true, 'accent_color' => BrandColor::fromImage($project->cover_image)]),
+        };
     }
 }

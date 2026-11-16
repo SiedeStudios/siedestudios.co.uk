@@ -104,6 +104,7 @@ class Settings
         }
 
         $public['is_available'] = $this->bool('is_available');
+        $public['seasonal_effects'] = $this->bool('seasonal_effects');
 
         return $public;
     }

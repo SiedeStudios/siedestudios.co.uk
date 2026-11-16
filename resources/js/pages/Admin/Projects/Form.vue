@@ -19,6 +19,8 @@ const form = useForm({
     project_category_id: props.project?.project_category_id ?? '',
     summary: props.project?.summary ?? '',
     body: props.project?.body ?? '',
+    accent_mode: props.project?.accent_mode ?? 'auto',
+    accent_color: props.project?.accent_color ?? props.project?.detected_accent ?? '#DC143C',
     results: [0, 1, 2, 3].map((i) => ({ value: props.project?.results?.[i]?.value ?? '', label: props.project?.results?.[i]?.label ?? '' })),
     chapter_images: Object.assign([], props.project?.chapter_images ?? []).map((id) => id ?? null),
     client: props.project?.client ?? '',
@@ -157,6 +159,23 @@ const links = [
                 <Field class="mt-5" label="Tags / stack" for="tags" :error="form.errors.tags" help="Comma separated, e.g. Laravel, Vue, Lua">
                     <input id="tags" v-model="form.tags" class="field" />
                 </Field>
+                <div class="mt-5">
+                    <div class="field-label">Brand colour</div>
+                    <p class="mb-3 text-sm text-muted">The case study page tints the whole site in this colour while it's open.</p>
+                    <div class="flex flex-wrap items-center gap-2">
+                        <button v-for="[mode, label] in [['auto', 'Auto from cover'], ['custom', 'Custom'], ['none', 'Off']]" :key="mode" type="button" class="flex h-10 items-center gap-2 rounded-full px-4 text-sm transition-colors" :class="form.accent_mode === mode ? 'bg-white/10 text-text shadow-[inset_0_0_0_1px_var(--line-2)]' : 'text-muted hover:text-text'" @click="form.accent_mode = mode">
+                            <span v-if="mode === 'auto'" class="size-3.5 rounded-full shadow-[inset_0_0_0_1px_rgb(255_255_255/.2)]" :style="{ background: project?.detected_accent ?? 'transparent' }"></span>
+                            {{ label }}
+                        </button>
+                        <span v-if="form.accent_mode === 'custom'" class="ml-2 flex items-center gap-2">
+                            <input v-model="form.accent_color" type="color" class="h-10 w-12 cursor-pointer rounded-xl border border-line-2 bg-transparent p-1" aria-label="Brand colour" />
+                            <input v-model="form.accent_color" class="field h-10 w-28 font-mono text-sm uppercase" maxlength="7" aria-label="Brand colour hex" />
+                        </span>
+                    </div>
+                    <p v-if="form.accent_mode === 'auto'" class="mt-2 text-xs text-muted">{{ project?.detected_accent ? `Detected ${project.detected_accent} from the cover — updates when the cover changes.` : (editing ? 'No strong colour in the cover, so the page keeps the site accent.' : 'Detected once you add a cover.') }}</p>
+                    <p v-if="form.accent_mode === 'custom'" class="mt-2 text-xs text-muted">Very dark or washed-out colours are adjusted so buttons and links stay readable.</p>
+                    <p v-if="form.errors.accent_color" class="field-error">{{ form.errors.accent_color }}</p>
+                </div>
             </section>
 
             <section class="card-solid p-6">
