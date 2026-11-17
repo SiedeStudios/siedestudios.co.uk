@@ -6,7 +6,6 @@ import PageTransition from '@/components/PageTransition.vue';
 import FlashToast from '@/components/FlashToast.vue';
 import EasterEggs from '@/components/eggs/EasterEggs.vue';
 import CookieConsent from '@/components/legal/CookieConsent.vue';
-import CustomCursor from '@/components/CustomCursor.vue';
 import Seasonal from '@/components/seasonal/Seasonal.vue';
 import { startSmoothScroll, stopSmoothScroll } from '@/lib/motion';
 
@@ -26,7 +25,6 @@ onBeforeUnmount(() => stopSmoothScroll());
         <FlashToast />
         <EasterEggs />
         <CookieConsent />
-        <CustomCursor />
         <Seasonal />
     </div>
 </template>

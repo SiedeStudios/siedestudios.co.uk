@@ -231,7 +231,7 @@ useMotion(root, (el) => {
                                     </span>
                                 </div>
                             </div>
-                            <div v-liquid data-cursor="View" class="relative overflow-hidden rounded-[1.25rem] bg-surface-2 md:col-span-7">
+                            <div class="relative overflow-hidden rounded-[1.25rem] bg-surface-2 md:col-span-7">
                                 <img v-if="project.cover" :src="project.cover" :srcset="project.cover_srcset" sizes="(min-width: 768px) 55vw, 100vw" :alt="project.title" loading="lazy" decoding="async" class="absolute inset-0 h-[112%] w-full object-cover object-top transition-transform duration-[1.2s] ease-out-expo group-hover:scale-[1.04]" />
                                 <div class="aspect-[16/10] md:aspect-auto md:h-full"></div>
                                 <div class="pointer-events-none absolute inset-0 rounded-[1.25rem] shadow-[inset_0_0_0_1px_rgb(255_255_255/.08)]"></div>

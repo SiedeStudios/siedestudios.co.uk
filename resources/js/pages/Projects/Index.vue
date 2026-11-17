@@ -73,7 +73,7 @@ useMotion(root, () => {
             <div ref="grid" class="mt-10 grid gap-x-6 gap-y-14 md:grid-cols-2">
                 <article v-for="(project, i) in visible" :key="project.id" data-flip :data-flip-id="project.id" :class="i % 2 === 1 ? 'md:translate-y-20' : ''">
                     <Link :href="`/projects/${project.slug}`" prefetch class="group block">
-                        <div v-liquid data-cursor="View" class="relative overflow-hidden rounded-[1.75rem] bg-surface shadow-[inset_0_0_0_1px_var(--line)]">
+                        <div class="relative overflow-hidden rounded-[1.75rem] bg-surface shadow-[inset_0_0_0_1px_var(--line)]">
                             <div class="aspect-[4/3]"></div>
                             <img v-if="project.cover" :src="project.cover" :srcset="project.cover_srcset" sizes="(min-width: 1024px) 45vw, 100vw" :alt="project.title" loading="lazy" decoding="async" class="absolute inset-0 h-[110%] w-full object-cover object-top transition-transform duration-[1.2s] ease-out-expo group-hover:scale-105" />
                             <div class="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-0 transition-opacity duration-500 group-hover:opacity-100"></div>
