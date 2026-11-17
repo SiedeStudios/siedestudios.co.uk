@@ -420,6 +420,10 @@ html.lenis body {
         background-position: right 1rem center;
         background-repeat: no-repeat;
         padding-right: 2.5rem;
+        /* Fixed height instead of vertical padding, so compact sizes (h-9, h-10) don't clip the text. */
+        padding-top: 0;
+        padding-bottom: 0;
+        height: 3.05rem;
     }
     select.field option {
         background: var(--surface-2);
