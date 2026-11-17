@@ -6,6 +6,7 @@ import PublicLayout from '@/layouts/PublicLayout.vue';
 import AdminLayout from '@/layouts/AdminLayout.vue';
 import BareLayout from '@/layouts/BareLayout.vue';
 import PortalLayout from '@/layouts/PortalLayout.vue';
+import ConfirmDialog from '@/components/ConfirmDialog.vue';
 import { magnetic } from '@/lib/magnetic';
 import { spotlight } from '@/lib/spotlight';
 
@@ -29,7 +30,7 @@ createInertiaApp({
         return PublicLayout;
     },
     setup({ el, App, props, plugin }) {
-        createApp({ render: () => h(App, props) })
+        createApp({ render: () => [h(App, props), h(ConfirmDialog)] })
             .use(plugin)
             .directive('magnetic', magnetic)
             .directive('spotlight', spotlight)

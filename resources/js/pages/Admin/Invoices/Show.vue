@@ -17,7 +17,8 @@ const mailto = computed(() => {
 });
 const setStatus = (status) => {
     const msg = { paid: 'Mark this invoice as paid manually (e.g. bank transfer)?', void: 'Void this invoice? The pay link will stop accepting payments.', open: 'Re-open this invoice for payment?', draft: 'Move back to draft? The pay link will be hidden.', refunded: 'Mark as refunded?' }[status];
-    confirmVisit(msg, `/admin/invoices/${props.invoice.reference}/status`, 'patch', { status });
+    const label = { paid: 'Mark as paid', void: 'Void invoice', open: 'Re-open', draft: 'Move to draft', refunded: 'Mark refunded' }[status];
+    confirmVisit(msg, `/admin/invoices/${props.invoice.reference}/status`, 'patch', { status }, { confirmLabel: label, danger: status === 'void' || status === 'refunded' });
 };
 </script>
 
@@ -26,7 +27,7 @@ const setStatus = (status) => {
     <PageHeader :title="invoice.reference" :description="`${invoice.client_name}${invoice.client_company ? ' · ' + invoice.client_company : ''}`" back="/admin/invoices">
         <StatusBadge :status="invoice.status" />
         <Link v-if="!locked" :href="`/admin/invoices/${invoice.reference}/edit`" class="btn btn-glass btn-sm"><Pencil :size="15" /> Edit</Link>
-        <button v-if="invoice.status !== 'paid'" type="button" class="btn btn-danger btn-sm" @click="confirmVisit('Delete this invoice permanently?', `/admin/invoices/${invoice.reference}`)"><Trash2 :size="15" /></button>
+        <button v-if="invoice.status !== 'paid'" type="button" class="btn btn-danger btn-sm" @click="confirmVisit('Delete this invoice permanently? This can\'t be undone.', `/admin/invoices/${invoice.reference}`)"><Trash2 :size="15" /></button>
     </PageHeader>
 
     <div class="grid gap-4 xl:grid-cols-3">
