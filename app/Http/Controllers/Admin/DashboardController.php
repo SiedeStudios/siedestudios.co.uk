@@ -2,44 +2,80 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Enums\InvoiceStatus;
+use App\Enums\ProjectStatus;
+use App\Enums\TestimonialStatus;
 use App\Http\Controllers\Controller;
+use App\Models\Invoice;
+use App\Models\IpnLog;
 use App\Models\Message;
-use App\Models\PortfolioProject;
+use App\Models\Project;
+use App\Models\Share;
 use App\Models\Testimonial;
-use Illuminate\Http\Request;
+use App\Support\Settings;
+use Inertia\Inertia;
+use Inertia\Response;
 
 class DashboardController extends Controller
 {
-    /**
-     * Display the dashboard.
-     *
-     * @return \Illuminate\View\View
-     */
-    public function index()
+    public function __invoke(Settings $settings): Response
     {
-        // Get stats for the dashboard
-        $portfolioCount = PortfolioProject::count();
-        $testimonialCount = Testimonial::count();
-        $newMessagesCount = Message::new()->count();
-        $draftProjectCount = PortfolioProject::draft()->count();
+        $currency = $settings->get('currency', 'GBP');
+        $start = now()->startOfMonth()->subMonths(11);
 
-        // Get recent projects
-        $recentProjects = PortfolioProject::latest()->take(5)->get();
+        // Bucket paid invoices per month in PHP so the query stays database-agnostic.
+        $paid = Invoice::where('status', InvoiceStatus::Paid)
+            ->where('currency', $currency)
+            ->where('paid_at', '>=', $start)
+            ->get(['paid_at', 'paid_amount', 'total']);
 
-        // Get recent testimonials
-        $recentTestimonials = Testimonial::latest()->take(5)->get();
-        
-        // Get recent messages
-        $recentMessages = Message::latest()->take(3)->get();
+        $revenue = collect(range(0, 11))->map(function (int $i) use ($start, $paid) {
+            $month = $start->copy()->addMonths($i);
 
-        return view('admin.dashboard', compact(
-            'portfolioCount',
-            'testimonialCount',
-            'newMessagesCount',
-            'draftProjectCount',
-            'recentProjects',
-            'recentTestimonials',
-            'recentMessages'
-        ));
+            return [
+                'label' => $month->format('M'),
+                'month' => $month->format('Y-m'),
+                'total' => round($paid->filter(fn ($inv) => $inv->paid_at->format('Y-m') === $month->format('Y-m'))
+                    ->sum(fn ($inv) => (float) ($inv->paid_amount ?? $inv->total)), 2),
+            ];
+        });
+
+        $open = Invoice::where('status', InvoiceStatus::Open)->where('currency', $currency);
+
+        // What the privacy policy / terms still need to meet UK disclosure rules.
+        $legalGaps = array_keys(array_filter([
+            'your legal name' => blank($settings->get('legal_name')),
+            'a business address' => blank($settings->get('business_address')),
+            'your ICO registration number' => blank($settings->get('ico_number')),
+            'your company number' => in_array($settings->get('legal_entity'), ['Limited company', 'LLP'], true) && blank($settings->get('company_number')),
+        ]));
+
+        return Inertia::render('Admin/Dashboard', [
+            'currency' => $currency,
+            'legal_gaps' => $legalGaps,
+            'stats' => [
+                'revenue_year' => round((float) Invoice::where('status', InvoiceStatus::Paid)->where('currency', $currency)->whereYear('paid_at', now()->year)->sum('paid_amount'), 2),
+                'outstanding' => round((float) (clone $open)->sum('total'), 2),
+                'outstanding_count' => (clone $open)->count(),
+                'unread' => Message::unread()->count(),
+                'pending_testimonials' => Testimonial::where('status', TestimonialStatus::Pending)->count(),
+                'projects' => Project::where('status', ProjectStatus::Published)->count(),
+                'drafts' => Project::where('status', ProjectStatus::Draft)->count(),
+                'shares' => Share::count(),
+            ],
+            'revenue' => $revenue,
+            'messages' => Message::latest()->limit(5)->get(['id', 'name', 'service_name', 'body', 'read_at', 'created_at']),
+            'pending' => Testimonial::where('status', TestimonialStatus::Pending)->latest('submitted_at')->limit(4)
+                ->get(['id', 'name', 'company', 'rating', 'body', 'submitted_at']),
+            'invoices' => Invoice::latest()->limit(5)->get(['id', 'reference', 'client_name', 'total', 'currency', 'status', 'created_at']),
+            'payments' => IpnLog::with('invoice:id,reference')->latest()->limit(5)
+                ->get(['id', 'invoice_id', 'txn_id', 'payment_status', 'verification', 'outcome', 'mc_gross', 'mc_currency', 'created_at']),
+            'checklist' => [
+                'paypal' => filled($settings->get('paypal_email')),
+                'webhook' => filled($settings->get('discord_webhook_url')),
+                'logo' => filled($settings->get('logo')),
+                'favicon' => filled($settings->get('favicon')),
+            ],
+        ]);
     }
 }

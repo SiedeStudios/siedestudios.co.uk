@@ -3,154 +3,109 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\Setting;
+use App\Support\Media;
+use App\Support\Settings;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Crypt;
+use Illuminate\Validation\Rule;
+use Inertia\Inertia;
+use Inertia\Response;
 
 class SettingsController extends Controller
 {
-    /**
-     * Display the settings page.
-     *
-     * @return \Illuminate\View\View
-     */
-    public function index()
+    public function edit(Settings $settings, ?string $group = null): Response
     {
-        // Load settings from database
-        $settings = [
-            'site_title' => Setting::get('site_title', config('app.name')),
-            'site_description' => Setting::get('site_description', 'SiedeStudios Portfolio Website'),
-            'contact_email' => Setting::get('contact_email', 'info@siedestudios.com'),
-            'contact_phone' => Setting::get('contact_phone', ''),
-            'social_twitter' => Setting::get('social_twitter', ''),
-            'social_facebook' => Setting::get('social_facebook', ''),
-            'social_instagram' => Setting::get('social_instagram', ''),
-            'social_github' => Setting::get('social_github', ''),
-            'social_linkedin' => Setting::get('social_linkedin', ''),
-            'meta_keywords' => Setting::get('meta_keywords', ''),
-            'google_analytics' => Setting::get('google_analytics', ''),
-            'logo' => Setting::get('logo', ''),
-            'favicon' => Setting::get('favicon', ''),
-        ];
+        $groups = config('site.groups');
+        $group ??= array_key_first($groups);
+        abort_unless(isset($groups[$group]), 404);
 
-        return view('admin.settings', compact('settings'));
+        $values = $settings->all();
+        $fields = collect($groups[$group]['fields'])->map(function (array $field, string $key) use ($values) {
+            $value = $values[$key] ?? null;
+
+            return [
+                'key' => $key,
+                'type' => $field['type'],
+                'label' => $field['label'],
+                'help' => $field['help'] ?? null,
+                'options' => isset($field['options']) ? config('site.'.$field['options']) : null,
+                'value' => match ($field['type']) {
+                    'toggle' => filter_var($value, FILTER_VALIDATE_BOOLEAN),
+                    'image', 'secret' => null,
+                    default => $value,
+                },
+                'preview' => $field['type'] === 'image' ? Media::url($value) : null,
+                'is_set' => $field['type'] === 'secret' ? filled($value) : null,
+            ];
+        })->values();
+
+        return Inertia::render('Admin/Settings', [
+            'groups' => collect($groups)->map(fn ($g, $key) => ['key' => $key, 'label' => $g['label']])->values(),
+            'group' => ['key' => $group, 'label' => $groups[$group]['label'], 'description' => $groups[$group]['description'] ?? null],
+            'fields' => $fields,
+            'context' => match ($group) {
+                'payments' => ['ipn_url' => route('paypal.ipn')],
+                'access' => ['env_ids' => config('site.admin_discord_ids'), 'me' => auth()->user()->discord_id],
+                'gmodstore' => ['store_admin' => route('admin.store.index')],
+                default => null,
+            },
+        ]);
     }
 
-    /**
-     * Update the settings.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @return \Illuminate\Http\RedirectResponse
-     */
-    public function update(Request $request)
+    public function update(Request $request, Settings $settings, string $group): RedirectResponse
     {
-        try {
-            $validated = $request->validate([
-                'site_title' => 'required|string|max:255',
-                'site_description' => 'nullable|string|max:500',
-                'contact_email' => 'nullable|email|max:255',
-                'contact_phone' => 'nullable|string|max:20',
-                'social_twitter' => 'nullable|url|max:255',
-                'social_facebook' => 'nullable|url|max:255',
-                'social_instagram' => 'nullable|url|max:255',
-                'social_github' => 'nullable|url|max:255',
-                'social_linkedin' => 'nullable|url|max:255',
-                'meta_keywords' => 'nullable|string|max:500',
-                'google_analytics' => 'nullable|string|max:50',
-                'logo' => 'nullable|image|mimes:jpeg,png,jpg,svg|max:2048',
-                'favicon' => 'nullable|file|mimes:ico,png|max:1024',
-            ]);
+        $definition = config("site.groups.{$group}");
+        abort_unless($definition, 404);
 
-            // Update settings in database
-            foreach ($validated as $key => $value) {
-                if ($key === 'logo' || $key === 'favicon') {
-                    continue; // Handle files separately
-                }
-                
-                Setting::set($key, $value);
+        $fields = $definition['fields'];
+        $rules = collect($fields)->mapWithKeys(fn ($f, $key) => [$key => $f['rules'] ?? ['nullable']])->all();
+
+        foreach ($fields as $key => $field) {
+            if ($field['type'] === 'image') {
+                $rules["remove_{$key}"] = ['boolean'];
             }
-
-            // Handle logo upload
-            if ($request->hasFile('logo')) {
-                $oldLogo = Setting::get('logo');
-                if ($oldLogo) {
-                    Storage::delete('public/settings/' . $oldLogo);
-                }
-
-                $logoName = 'logo_' . time() . '.' . $request->file('logo')->getClientOriginalExtension();
-                $request->file('logo')->storeAs('public/settings', $logoName);
-                Setting::set('logo', $logoName);
+            if ($field['type'] === 'secret') {
+                $rules["clear_{$key}"] = ['boolean'];
             }
-
-            // Handle favicon upload
-            if ($request->hasFile('favicon')) {
-                $oldFavicon = Setting::get('favicon');
-                if ($oldFavicon) {
-                    Storage::delete('public/settings/' . $oldFavicon);
-                }
-
-                $faviconName = 'favicon_' . time() . '.' . $request->file('favicon')->getClientOriginalExtension();
-                $request->file('favicon')->storeAs('public/settings', $faviconName);
-                Setting::set('favicon', $faviconName);
+            if (isset($field['options'])) {
+                $rules[$key][] = Rule::in(config('site.'.$field['options']));
             }
-
-            // Update app name in the .env file
-            if ($request->site_title !== config('app.name')) {
-                $this->setEnvValue('APP_NAME', '"' . $request->site_title . '"');
-            }
-
-            return redirect()->route('admin.settings')
-                ->with('success', 'Settings updated successfully.');
-                
-        } catch (\Exception $e) {
-            Log::error('Settings update error: ' . $e->getMessage());
-            return redirect()->route('admin.settings')
-                ->with('error', 'An error occurred while updating settings. Please try again.');
         }
-    }
 
-    /**
-     * Set a .env file value.
-     *
-     * @param string $key
-     * @param string $value
-     * @return void
-     */
-    private function setEnvValue($key, $value)
-    {
-        try {
-            $path = app()->environmentFilePath();
-            $env = file_get_contents($path);
+        $data = $request->validate($rules);
+        $current = $settings->all();
+        $save = [];
 
-            $old = env($key);
-            
-            // If value contains spaces or hash characters, surround with quotes
-            if (strpos($value, ' ') !== false || strpos($value, '#') !== false) {
-                if (!str_starts_with($value, '"') && !str_ends_with($value, '"')) {
-                    $value = '"' . $value . '"';
+        foreach ($fields as $key => $field) {
+            if ($field['type'] === 'image') {
+                if ($request->boolean("remove_{$key}") || $request->hasFile($key)) {
+                    Media::delete($current[$key] ?? null);
+                    $save[$key] = null;
                 }
+                if ($request->hasFile($key)) {
+                    $save[$key] = $request->file($key)->store('branding', 'public');
+                }
+
+                continue;
             }
 
-            // Format the old key-value pair for replacement
-            $oldPair = $key . '=' . (is_string($old) && 
-                        !str_starts_with($old, '"') && 
-                        !str_ends_with($old, '"') && 
-                        (strpos($old, ' ') !== false || strpos($old, '#') !== false) ? 
-                        '"' . $old . '"' : $old);
-            
-            // Create the new key-value pair
-            $newPair = $key . '=' . $value;
+            // Secrets are write-only: blank keeps the stored value, "clear_<key>" removes it.
+            if ($field['type'] === 'secret') {
+                if ($request->boolean("clear_{$key}")) {
+                    $save[$key] = null;
+                } elseif (filled($data[$key] ?? null)) {
+                    $save[$key] = Crypt::encryptString($data[$key]);
+                }
 
-            // Replace the old pair with the new one
-            $env = str_replace($oldPair, $newPair, $env);
-            
-            // Write the updated content back to the .env file
-            file_put_contents($path, $env);
-            
-        } catch (\Exception $e) {
-            Log::error('Error updating .env file: ' . $e->getMessage());
-            // Continue execution even if .env update fails
+                continue;
+            }
+
+            $save[$key] = $field['type'] === 'toggle' ? ($request->boolean($key) ? '1' : '0') : ($data[$key] ?? null);
         }
+
+        $settings->set($save);
+
+        return back()->with('success', $definition['label'].' settings saved.');
     }
 }

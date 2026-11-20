@@ -1,183 +1,44 @@
-/**
- * SiedeStudios - Main JavaScript File
- * Entry point for Vite
- */
+import '../css/app.css';
 
-// Import Bootstrap
-import './bootstrap.js';
+import { createApp, h } from 'vue';
+import { createInertiaApp } from '@inertiajs/vue3';
+import PublicLayout from '@/layouts/PublicLayout.vue';
+import AdminLayout from '@/layouts/AdminLayout.vue';
+import BareLayout from '@/layouts/BareLayout.vue';
+import PortalLayout from '@/layouts/PortalLayout.vue';
+import ConfirmDialog from '@/components/ConfirmDialog.vue';
+import { magnetic } from '@/lib/magnetic';
+import { spotlight } from '@/lib/spotlight';
 
-// Import modules (which will now have access to global jQuery)
-import './theme-toggle.js';
-import './animations.js';
-import './header.js';
+const pages = import.meta.glob('./pages/**/*.vue');
+const BARE = ['Admin/Login', 'Portal/Login', 'Portal/Invite', 'Share/Show', 'Share/Locked', 'Testimonial/Submit'];
 
-// Add animation classes to elements that should animate
-$(document).ready(function() {
-  // Hero section animations - use CSS classes instead of GSAP
-  $('.hero-title-top').addClass('slide-in-bottom');
-  $('.hero-title-main').addClass('slide-in-bottom');
-  $('.hero-subtitle').addClass('slide-in-bottom');
-  $('.hero-cta').addClass('slide-in-bottom');
-  $('.code-window').addClass('slide-in-right');
-  $('.hero-shape').addClass('fade-in');
-  
-  // Service cards 
-  $('.service-card').addClass('fade-in');
-  
-  // About section
-  $('.about-image img').addClass('slide-in-right');
-  $('.about-content h2').addClass('slide-in-left');
-  $('.about-content .lead').addClass('slide-in-left');
-  $('.about-content p').addClass('slide-in-left');
-  $('.about-content .btn-text').addClass('slide-in-left');
-  
-  // Portfolio items
-  $('.portfolio-item').addClass('fade-in');
-  
-  // CTA section
-  $('.cta-content').addClass('fade-in');
-  $('.cta-content h2, .cta-content p, .cta-content .btn').each(function(index) {
-    $(this).css('animation-delay', `${index * 0.2}s`);
-  });
-  
-  // Add staggered animations to lists
-  $('.stagger-children').each(function() {
-    $(this).children().each(function(index) {
-      $(this).css('animation-delay', `${index * 0.1}s`);
-    });
-  });
-  
-  // Trigger animations after a slight delay to ensure everything is loaded
-  setTimeout(function() {
-    $('.fade-in, .slide-in-bottom, .slide-in-left, .slide-in-right, .scale-in').addClass('animated');
-  }, 100);
-  
-  // Testimonial slider functionality
-  function initTestimonialSlider() {
-    const testimonials = $('.testimonial-item');
-    const dots = $('.testimonial-dots .dot');
-    const prevBtn = $('.testimonial-prev');
-    const nextBtn = $('.testimonial-next');
-    let currentIndex = 0;
-    
-    // Show only the current testimonial
-    function showTestimonial(index) {
-      testimonials.each(function(i) {
-        $(this).css('display', i === index ? 'block' : 'none');
-      });
-      
-      dots.each(function(i) {
-        $(this).toggleClass('active', i === index);
-      });
-    }
-    
-    // Initial display
-    showTestimonial(currentIndex);
-    
-    // Event listeners
-    prevBtn.on('click', function() {
-      currentIndex = (currentIndex === 0) ? testimonials.length - 1 : currentIndex - 1;
-      showTestimonial(currentIndex);
-    });
-    
-    nextBtn.on('click', function() {
-      currentIndex = (currentIndex === testimonials.length - 1) ? 0 : currentIndex + 1;
-      showTestimonial(currentIndex);
-    });
-    
-    // Dot navigation
-    dots.each(function(i) {
-      $(this).on('click', function() {
-        currentIndex = i;
-        showTestimonial(currentIndex);
-      });
-    });
-  }
-  
-  // Initialize the testimonial slider if testimonials exist on the page
-  if ($('.testimonial-item').length > 0) {
-    initTestimonialSlider();
-  }
-});
-
-$(document).ready(function() {
-  // Initialize animations for elements
-  const animateElements = function() {
-    $('.fade-in').each(function() {
-      const element = $(this);
-      if (isElementInViewport(element)) {
-        element.addClass('animated');
-      }
-    });
-    
-    $('.slide-in-bottom').each(function() {
-      const element = $(this);
-      if (isElementInViewport(element)) {
-        element.addClass('animated');
-      }
-    });
-    
-    $('.slide-in-left').each(function() {
-      const element = $(this);
-      if (isElementInViewport(element)) {
-        element.addClass('animated');
-      }
-    });
-    
-    $('.slide-in-right').each(function() {
-      const element = $(this);
-      if (isElementInViewport(element)) {
-        element.addClass('animated');
-      }
-    });
-    
-    $('.stagger-children').each(function() {
-      const element = $(this);
-      if (isElementInViewport(element)) {
-        element.addClass('animated');
-      }
-    });
-  };
-  
-  // Check if element is in viewport
-  const isElementInViewport = function(el) {
-    if (typeof jQuery === "function" && el instanceof jQuery) {
-      el = el[0];
-    }
-    
-    const rect = el.getBoundingClientRect();
-    
-    return (
-      rect.top <= (window.innerHeight || document.documentElement.clientHeight) * 0.9 &&
-      rect.bottom >= 0
-    );
-  };
-  
-  // Run animations on page load
-  animateElements();
-  
-  // Run animations on scroll
-  $(window).on('scroll', function() {
-    animateElements();
-  });
-  
-  // Smooth scroll for anchor links
-  $('a[href^="#"]').on('click', function(e) {
-    e.preventDefault();
-    
-    const targetId = $(this).attr('href');
-    
-    // Skip if it's just "#"
-    if (targetId === '#') return;
-    
-    const targetElement = $(targetId);
-    
-    if (targetElement.length) {
-      const scrollTop = targetElement.offset().top - 100; // Offset for header
-      
-      $('html, body').animate({
-        scrollTop: scrollTop
-      }, 800, 'swing');
-    }
-  });
+createInertiaApp({
+    title: (title, page) => {
+        const name = page?.props?.site?.site_name ?? 'SiedeStudios';
+        return title ? `${title} — ${name}` : `${name} — ${page?.props?.site?.site_tagline ?? ''}`.replace(/ — $/, '');
+    },
+    resolve: (name) => {
+        const loader = pages[`./pages/${name}.vue`];
+        if (!loader) throw new Error(`Page not found: ${name}`);
+        return loader();
+    },
+    layout: (name) => {
+        if (BARE.includes(name)) return BareLayout;
+        if (name.startsWith('Admin/')) return AdminLayout;
+        if (name.startsWith('Portal/')) return PortalLayout;
+        return PublicLayout;
+    },
+    setup({ el, App, props, plugin }) {
+        createApp({ render: () => [h(App, props), h(ConfirmDialog)] })
+            .use(plugin)
+            .directive('magnetic', magnetic)
+            .directive('spotlight', spotlight)
+            .mount(el);
+    },
+    progress: {
+        color: 'var(--accent)',
+        delay: 250,
+        showSpinner: false,
+    },
 });

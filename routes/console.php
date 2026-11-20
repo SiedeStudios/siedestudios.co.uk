@@ -1,19 +1,11 @@
 <?php
 
-use Illuminate\Foundation\Inspiring;
-use Illuminate\Support\Facades\Artisan;
+use App\Models\MonitorCheck;
+use App\Models\MonitorDay;
+use App\Models\Share;
+use Illuminate\Support\Facades\Schedule;
 
-/*
-|--------------------------------------------------------------------------
-| Console Routes
-|--------------------------------------------------------------------------
-|
-| This file is where you may define all of your Closure based console
-| commands. Each Closure is bound to a command instance allowing a
-| simple approach to interacting with each command's IO methods.
-|
-*/
-
-Artisan::command('inspire', function () {
-    $this->comment(Inspiring::quote());
-})->purpose('Display an inspiring quote');
+Schedule::command('model:prune', ['--model' => [Share::class, MonitorCheck::class, MonitorDay::class]])->daily()->withoutOverlapping();
+Schedule::command('monitors:check')->everyMinute()->withoutOverlapping(5)->runInBackground();
+Schedule::command('privacy:prune')->dailyAt('03:17')->withoutOverlapping();
+Schedule::command('gmodstore:sync')->hourly()->withoutOverlapping();
