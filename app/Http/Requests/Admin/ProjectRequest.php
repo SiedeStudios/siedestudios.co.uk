@@ -52,6 +52,12 @@ class ProjectRequest extends FormRequest
             'is_featured' => ['boolean'],
             'status' => ['required', Rule::enum(ProjectStatus::class)],
             'cover' => ['nullable', 'image', 'max:8192'],
+            'showcase' => ['nullable', 'array'],
+            'showcase.slots' => ['nullable', 'array', 'max:3'],
+            'showcase.slots.*.image' => ['nullable', 'integer'],
+            'showcase.slots.*.label' => ['nullable', 'string', 'max:60'],
+            'showcase.slots.*.focus' => ['nullable', 'numeric', 'between:0,1'],
+            'showcase.color' => ['nullable', 'regex:/^#[0-9A-Fa-f]{6}$/'],
             'remove_cover' => ['boolean'],
         ];
     }

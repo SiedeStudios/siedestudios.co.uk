@@ -4,6 +4,8 @@ namespace Tests\Feature;
 
 use App\Enums\ProjectStatus;
 use App\Models\Project;
+use App\Models\ProjectImage;
+use Illuminate\Http\UploadedFile;
 use App\Support\BrandColor;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
@@ -83,6 +85,51 @@ class ProjectColourTest extends TestCase
         $this->put("/admin/projects/{$project->id}", $base);
         $this->assertNull($project->fresh()->accent_color);
         $this->assertFalse($project->fresh()->accent_auto);
+    }
+
+    public function test_cover_mockup_settings_are_saved_and_cleaned(): void
+    {
+        Storage::fake('public');
+        $this->actingAs($this->admin());
+        $project = Project::create(['title' => 'Vanta', 'slug' => 'vanta', 'summary' => 'S', 'status' => ProjectStatus::Published, 'published_at' => now()]);
+        $a = ProjectImage::create(['project_id' => $project->id, 'path' => 'projects/a.png', 'sort_order' => 1]);
+        $b = ProjectImage::create(['project_id' => $project->id, 'path' => 'projects/b.png', 'sort_order' => 2]);
+        $other = ProjectImage::create(['project_id' => Project::create(['title' => 'O', 'slug' => 'o', 'summary' => 'S', 'status' => ProjectStatus::Draft])->id, 'path' => 'projects/o.png', 'sort_order' => 1]);
+        $base = ['title' => 'Vanta', 'summary' => 'S', 'status' => 'published'];
+
+        $this->put("/admin/projects/{$project->id}", [...$base,
+            'showcase' => [
+                'slots' => [
+                    ['image' => $a->id, 'label' => '', 'focus' => '0'],
+                    ['image' => $b->id, 'label' => '  admin · vantarp  ', 'focus' => '0.25'],
+                    ['image' => $other->id, 'label' => 'vantarp · control room', 'focus' => '1'],
+                ],
+                'color' => '#dc143c',
+            ],
+            // The generated mockup arrives as an ordinary cover upload.
+            'cover' => UploadedFile::fake()->image('vanta-cover.webp', 1920, 1200),
+        ])->assertSessionHasNoErrors();
+
+        $project->refresh();
+        $this->assertSame([
+            'slots' => [
+                ['image' => $a->id, 'label' => '', 'focus' => 0],
+                ['image' => $b->id, 'label' => 'admin · vantarp', 'focus' => 0.25],
+                // Another project's screenshot is dropped, the rest of the window kept.
+                ['image' => null, 'label' => 'vantarp · control room', 'focus' => 1],
+            ],
+            'color' => '#DC143C',
+        ], $project->showcase);
+        $this->assertNotNull($project->cover_image);
+
+        // Saving the form without mockup fields leaves them alone.
+        $this->put("/admin/projects/{$project->id}", $base)->assertSessionHasNoErrors();
+        $this->assertSame('#DC143C', $project->fresh()->showcase['color']);
+
+        $this->put("/admin/projects/{$project->id}", [...$base, 'showcase' => ['color' => 'red', 'slots' => [['focus' => 3]]]])
+            ->assertSessionHasErrors(['showcase.color', 'showcase.slots.0.focus']);
+
+        $this->get("/admin/projects/{$project->id}/edit")->assertInertia(fn ($page) => $page->where('project.showcase.slots.1.label', 'admin · vantarp'));
     }
 
     public function test_case_study_page_receives_its_colour(): void

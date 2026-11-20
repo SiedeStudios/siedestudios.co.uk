@@ -6,6 +6,7 @@ import PageHeader from '@/components/admin/PageHeader.vue';
 import Field from '@/components/admin/Field.vue';
 import Toggle from '@/components/admin/Toggle.vue';
 import ImageInput from '@/components/admin/ImageInput.vue';
+import ShowcaseMaker from '@/components/admin/ShowcaseMaker.vue';
 import BrandIcon from '@/components/BrandIcon.vue';
 import { useDragSort } from '@/composables/useDragSort';
 import { confirmVisit } from '@/composables/useConfirm';
@@ -36,6 +37,7 @@ const form = useForm({
     status: props.project?.status ?? 'draft',
     cover: null,
     remove_cover: false,
+    showcase: props.project?.showcase ?? null,
 });
 
 // "## " headings become chapters of the scroll story (mirrors App\Support\CaseStudy).
@@ -83,6 +85,21 @@ const upload = (files) => {
 };
 const saveCaption = (img) => router.patch(`/admin/project-images/${img.id}`, { caption: img.caption }, { preserveScroll: true, preserveState: true });
 const sort = useDragSort(images, (list) => router.post(`/admin/projects/${props.project.id}/images/reorder`, { ids: list.map((i) => i.id) }, { preserveScroll: true, preserveState: true }));
+
+/* Cover mockup */
+const mockupColour = computed(() => (form.accent_mode === 'custom' ? form.accent_color : props.project?.detected_accent ?? null));
+const mockupLabel = computed(() => {
+    try {
+        return form.site_url ? new URL(form.site_url).hostname.replace(/^www\./, '') : form.title.toLowerCase();
+    } catch {
+        return form.title.toLowerCase();
+    }
+});
+const useMockup = (file) => {
+    form.cover = file;
+    form.remove_cover = false;
+    submit();
+};
 
 const links = [
     ['site_url', 'Live site', Globe],
@@ -246,6 +263,17 @@ const links = [
                     </ul>
                 </template>
             </section>
+
+            <ShowcaseMaker
+                v-if="editing"
+                v-model="form.showcase"
+                :images="images"
+                :project-color="mockupColour"
+                :default-label="mockupLabel"
+                :filename="`${form.slug || 'project'}-cover`"
+                :busy="form.processing"
+                @use="useMockup"
+            />
         </div>
 
         <aside class="space-y-4">

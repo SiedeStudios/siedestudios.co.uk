@@ -27,6 +27,7 @@ class Project extends Model
             'accent_auto' => 'boolean',
             'results' => 'array',
             'chapter_images' => 'array',
+            'showcase' => 'array',
             'is_featured' => 'boolean',
             'status' => ProjectStatus::class,
             'sort_order' => 'integer',

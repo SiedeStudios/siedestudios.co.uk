@@ -15,6 +15,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -105,9 +106,33 @@ class ProjectController extends Controller
         ]);
     }
 
+    /** Cover mockup settings: three windows, each pointing at one of this project's screenshots. */
+    private function showcase(mixed $input, array $imageIds): ?array
+    {
+        if (! is_array($input)) {
+            return null;
+        }
+
+        $slots = collect(range(0, 2))->map(function (int $i) use ($input, $imageIds) {
+            $image = (int) data_get($input, "slots.{$i}.image");
+
+            return [
+                'image' => in_array($image, $imageIds, true) ? $image : null,
+                'label' => Str::limit(trim((string) data_get($input, "slots.{$i}.label")), 60, ''),
+                'focus' => round(min(1, max(0, (float) data_get($input, "slots.{$i}.focus", 0))), 2),
+            ];
+        })->all();
+        $color = (string) data_get($input, 'color');
+
+        return [
+            'slots' => $slots,
+            'color' => preg_match('/^#[0-9A-Fa-f]{6}$/', $color) ? strtoupper($color) : null,
+        ];
+    }
+
     private function fill(Project $project, ProjectRequest $request): void
     {
-        $data = $request->safe()->except(['cover', 'remove_cover', 'slug', 'accent_mode', 'accent_color']);
+        $data = $request->safe()->except(['cover', 'remove_cover', 'slug', 'accent_mode', 'accent_color', 'showcase']);
         $project->fill($data);
         $project->results = collect($data['results'] ?? [])->filter(fn ($r) => filled($r['value'] ?? null))->values()->all() ?: null;
         // Only keep chapter images that belong to this project.
@@ -115,6 +140,9 @@ class ProjectController extends Controller
         $chosen = $data['chapter_images'] ?? [];
         $list = $chosen ? array_map(fn ($i) => in_array((int) ($chosen[$i] ?? 0), $ids, true) ? (int) $chosen[$i] : null, range(0, max(array_keys($chosen)))) : [];
         $project->chapter_images = array_filter($list) ? $list : null;
+        if ($request->has('showcase')) {
+            $project->showcase = $this->showcase($request->input('showcase'), $ids);
+        }
         $project->slug = UniqueSlug::for(Project::class, $request->input('slug') ?: $data['title'], $project->id);
 
         if ($project->status === ProjectStatus::Published && ! $project->published_at) {
